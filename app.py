@@ -7,8 +7,11 @@ import uuid
 # Supabase config (update this)
 
 # -----------------------------
-SUPABASE_URL="https://sxxjehmcgkmsaosvrykl.supabase.co"
-SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4eGplaG1jZ2ttc2Fvc3ZyeWtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3NjAxMDUsImV4cCI6MjA3NTMzNjEwNX0.Dt1-pYCyrCkIhQ77KyNgJJcGwoI9PBksa8nkytqq7FM"
+import streamlit as st
+from supabase import create_client, Client
+
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -122,3 +125,4 @@ if st.button("Submit Feedback", type="primary"):
         st.success("✅ Thanks! Your feedback was submitted.")
     except Exception as e:
         st.error(f"❌ Failed to submit: {e}")
+
