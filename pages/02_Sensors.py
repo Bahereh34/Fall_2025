@@ -88,7 +88,7 @@ else:
     st.subheader("Latest rows")
     st.dataframe(view.sort_values("ts", ascending=False).head(200), use_container_width=True)
 
-# ---- Manual test insert (handy while wiring devices) -----------------
+# ---- Manual test insert (for debugging) -----------------
 with st.expander("Manual test insert (for debugging)"):
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     with c1: device_id = st.text_input("device_id", "esp32-classroom-01")
@@ -97,6 +97,7 @@ with st.expander("Manual test insert (for debugging)"):
     with c4: rh = st.number_input("rh", value=45.0)
     with c5: co2_ppm = st.number_input("co2_ppm", value=700)
     with c6: lux = st.number_input("lux", value=500)
+
     if st.button("Insert test row"):
         try:
             supabase.table("sensor_readings").insert({
@@ -104,6 +105,7 @@ with st.expander("Manual test insert (for debugging)"):
                 "temp_c": temp_c, "rh": rh, "co2_ppm": co2_ppm, "lux": lux
             }).execute()
             st.success("Row inserted ✅")
-            st.cache_data.clear()
+            st.cache_data.clear()   # clear cached fetch_sensors()
+            st.rerun()              # <— force a fresh run so charts pick it up
         except Exception as e:
             st.error(f"Insert failed: {e}")
