@@ -2,7 +2,37 @@ import streamlit as st
 from supabase import create_client, Client
 from datetime import datetime
 import uuid
-
+# --- UI helpers -------------------------------------------------------
+def gradient_legend(colors: list[str], labels: list[str], height: int = 10):
+    """
+    Draw a horizontal gradient bar with evenly spaced labels underneath.
+    colors: list like ["#1e3a8a 0%", "#2563eb 16.6%", ..., "#dc2626 100%"]
+    labels: same number of tick labels to show under the bar
+    """
+    bar = f"linear-gradient(90deg, {', '.join(colors)})"
+    ticks = "".join([f"<span>{lbl}</span>" for lbl in labels])
+    html = f"""
+    <div style="margin:6px 2px 2px 2px;">
+      <div style="
+          width:100%;
+          height:{height}px;
+          border-radius:8px;
+          background:{bar};
+          box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+        ">
+      </div>
+      <div style="
+          display:flex;
+          justify-content:space-between;
+          font-size:0.8rem;
+          opacity:0.75;
+          margin-top:4px;">
+        {ticks}
+      </div>
+    </div>
+    """
+    import streamlit as st  # local import so function is copy/paste friendly
+    st.markdown(html, unsafe_allow_html=True)
 # -----------------------------
 # Supabase config (update this)
 
@@ -73,6 +103,14 @@ st.markdown("---")
 st.header("3) Visual Comfort")
 brightness = st.radio("Brightness level:", ["Too dim", "OK", "Too bright"], horizontal=True)
 glare_rating = st.slider("Glare discomfort (1=no glare, 5=severe glare)", 1, 5, 2)
+# Dark → OK → Bright
+glare_colors = [
+    "#000000 0%",   # black
+    "#6b7280 50%",  # gray (OK)
+    "#fde047 100%"  # bright yellow
+]
+glare_labels = ["Dark", "OK", "Too bright"]
+gradient_legend(glare_colors, glare_labels)
 task_affected = st.checkbox("Glare/brightness is affecting my task (screen/board/paper)")
 visual_notes = st.text_area("Visual notes (optional):", placeholder="e.g., glare on screen; board is hard to read…")
 
@@ -125,4 +163,5 @@ if st.button("Submit Feedback", type="primary"):
         st.success("✅ Thanks! Your feedback was submitted.")
     except Exception as e:
         st.error(f"❌ Failed to submit: {e}")
+
 
