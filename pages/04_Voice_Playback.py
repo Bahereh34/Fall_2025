@@ -18,8 +18,13 @@ c1, c2 = st.columns(2)
 room_filter = c1.text_input("Filter by room (optional)")
 type_filter = c2.selectbox("Filter by type", ["", "thermal", "visual", "acoustic", "IAQ", "other"], index=0)
 
-# Query rows with audio
-q = supabase.table(TABLE).select("*").is_not("audio_path", "null").order("timestamp", desc=True)
+# Query rows with audio (audio_path IS NOT NULL)
+q = (
+    supabase.table(TABLE)
+    .select("*")
+    .not_.is_("audio_path", "null")   # <-- FIX
+    .order("timestamp", desc=True)
+)
 if room_filter.strip():
     q = q.ilike("room", f"%{room_filter.strip()}%")
 if type_filter:
