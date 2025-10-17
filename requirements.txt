@@ -1,5 +1,4 @@
-streamlit>=1.32
-supabase>=2.5
+streamlit==1.39.0
 supabase==2.7.4
 streamlit-audiorecorder==0.0.4
 SpeechRecognition==3.10.4
