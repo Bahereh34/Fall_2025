@@ -256,7 +256,7 @@ clothing_val = clothing_choice if clothing_choice != "Other" else (clothing_othe
 st.markdown("---")
 
 # -----------------------------
-# ---------- Optional Voice Note (robust recorder with fallback) ----------
+# ---------- Optional Voice Note (single active recorder + unique keys) ----------
 import io, uuid
 from datetime import datetime
 import streamlit as st
@@ -272,77 +272,71 @@ st.caption(
     "Anonymous is OK. We store the file securely."
 )
 
-# Try recorder A: audio_recorder_streamlit
-_recorder_rendered = False
-try:
-    from audio_recorder_streamlit import audio_recorder  # package: audio-recorder-streamlit
-    st.write("**Recorder (mic):** click to start/stop")
-    raw = audio_recorder(
-        text="Click to record / stop (≤15s)",
-        recording_color="#ef4444",
-        neutral_color="#e5e7eb",
-        icon_size="2x"
-    )
-    if raw:
-        audio_bytes = raw
-        _recorder_rendered = True
-except Exception as e:
-    pass
+method = st.radio(
+    "Recording method",
+    ["Mic recorder (Option A)", "Mic recorder (Option B)", "Upload a file"],
+    index=0,
+    help="If A doesn’t work in your browser, try B. Otherwise upload a short audio file."
+)
 
-# Try recorder B: streamlit-audiorecorder
-if audio_bytes is None:
+if method == "Mic recorder (Option A)":
+    try:
+        from audio_recorder_streamlit import audio_recorder  # package: audio-recorder-streamlit
+        raw = audio_recorder(
+            text="Click to record / stop (≤15s)",
+            recording_color="#ef4444",
+            neutral_color="#e5e7eb",
+            icon_size="2x",
+            key="recorder_option_a",  # UNIQUE KEY
+        )
+        if raw:
+            audio_bytes = raw
+            audio_mime = "audio/wav"
+            st.audio(io.BytesIO(audio_bytes), format=audio_mime)
+    except Exception as e:
+        st.warning(f"Recorder A unavailable: {e}")
+
+elif method == "Mic recorder (Option B)":
     try:
         from audiorecorder import audiorecorder  # package: streamlit-audiorecorder
-        st.write("**Recorder (mic):** click start/stop")
-        rec = audiorecorder("🎙️ Start recording", "🛑 Stop")
+        rec = audiorecorder("🎙️ Start recording", "🛑 Stop", key="recorder_option_b")  # UNIQUE KEY
         if len(rec) > 0:
             buf = io.BytesIO()
-            rec.export(buf, format="wav")  # requires pydub
+            rec.export(buf, format="wav")  # requires pydub + (optionally) ffmpeg
             buf.seek(0)
             audio_bytes = buf.getvalue()
-            audio_seconds = round(len(rec) / 1000, 1)  # ms -> s
-        _recorder_rendered = True
+            audio_seconds = round(len(rec) / 1000, 1)  # ms → s
+            audio_mime = "audio/wav"
+            st.audio(io.BytesIO(audio_bytes), format=audio_mime)
+            st.info(f"Duration: ~{audio_seconds} sec")
     except Exception as e:
-        pass
+        st.warning(f"Recorder B unavailable: {e}")
 
-# If no recorder rendered or mic blocked, show uploader
-if not _recorder_rendered:
-    st.info("Microphone recorder unavailable on this device or environment. You can upload a short audio file instead.")
-upload = st.file_uploader("Upload voice note (≤15s; wav/mp3/m4a)", type=["wav", "mp3", "m4a"])
-if upload is not None:
-    audio_bytes = upload.read()
-    audio_mime = upload.type or "audio/wav"
+else:  # Upload a file
+    upload = st.file_uploader("Upload voice note (≤15s; wav/mp3/m4a)", type=["wav", "mp3", "m4a"])
+    if upload is not None:
+        audio_bytes = upload.read()
+        audio_mime = upload.type or "audio/wav"
+        st.audio(io.BytesIO(audio_bytes), format=audio_mime)
 
-# Preview + (optional) transcription
+# Optional best-effort transcript
 if audio_bytes:
-    st.audio(io.BytesIO(audio_bytes), format=audio_mime)
-    # Best-effort transcript (optional)
     try:
         import speech_recognition as sr
         r = sr.Recognizer()
-        # Convert to wav for SR if needed
         wav_buf = io.BytesIO(audio_bytes)
         with sr.AudioFile(wav_buf) as source:
             audio_data = r.record(source)
         voice_transcript = r.recognize_google(audio_data)
         st.success("Transcript ready.")
         st.write("📝", voice_transcript)
-    except Exception as e:
+    except Exception:
         st.caption("Transcript not available (that’s OK).")
 
 voice_note_text = st.text_input(
     "Short summary (optional)",
     placeholder="e.g., Tired; cold draft near window; glare on projector"
 )
-
-# Save fields later: add to your payload before inserting to Supabase
-# data.update({
-#     "audio_path": audio_path,                 # set after upload to Storage
-#     "audio_mime": (audio_mime if audio_path else None),
-#     "audio_seconds": (audio_seconds or None),
-#     "voice_transcript": (voice_transcript or None),
-#     "voice_note_text": (voice_note_text.strip() or None),
-# })
 # -----------------------------
 # Actions: Reset + Submit
 # -----------------------------
@@ -419,4 +413,5 @@ with a2:
             st.rerun()
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
+
 
