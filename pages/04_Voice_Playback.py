@@ -2,6 +2,15 @@
 from datetime import datetime
 import streamlit as st
 from supabase import create_client, Client
+from supabase import create_client, Client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+st.set_page_config(page_title="Comfort Dashboard", page_icon="📊", layout="wide")
+st.title("📊 Comfort Dashboard")
+try:
+    supabase.table("feedback").select("id").limit(1).execute()
+    st.caption("✅ Supabase connected")
+except Exception as e:
+    st.error(f"❌ Supabase probe failed: {e}")
 
 st.title("🎧 Playback")
 
