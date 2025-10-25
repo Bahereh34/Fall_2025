@@ -40,6 +40,38 @@ def glare_color(v: int) -> str:
     # 1..5 → black→yellow
     return {1:"#000000", 2:"#4b5563", 3:"#9ca3af", 4:"#f59e0b", 5:"#fde047"}[int(v)]
 
+def kss_color(score: int) -> str:
+    # 1..9 (alert → sleepy): green → yellow → red
+    scale = {
+        1:"#16a34a", 2:"#22c55e", 3:"#4ade80",
+        4:"#a3e635", 5:"#eab308",
+        6:"#f59e0b", 7:"#fb923c", 8:"#f97316", 9:"#ef4444"
+    }
+    return scale[int(score)]
+
+def chip(color: str, text: str, icon: str = "") -> str:
+    return f"""
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;
+                background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.05)">
+      <span style="width:12px;height:12px;border-radius:50%;background:{color};
+                   border:1px solid rgba(0,0,0,.1)"></span>
+      <span style="font-size:.9rem;opacity:.85">{icon} {text}</span>
+    </div>
+    """
+
+def metric_card(title: str, value: str, sub: str = "", icon: str = ""):
+    st.markdown(
+        f"""
+        <div style="border:1px solid rgba(0,0,0,0.06);border-radius:16px;padding:14px 16px;
+                    background:white;box-shadow:0 1px 2px rgba(0,0,0,0.04);">
+          <div style="font-size:.8rem;opacity:.7;margin-bottom:6px;">{icon} {title}</div>
+          <div style="font-weight:700;font-size:1.2rem">{value}</div>
+          <div style="font-size:.8rem;opacity:.6">{sub}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 # -----------------------------
 # Supabase (read from Streamlit secrets)
 # -----------------------------
@@ -96,14 +128,7 @@ gradient_legend(thermal_colors, thermal_labels)
 
 # Live color chip for thermal
 st.markdown(
-    f"""
-    <span style="display:inline-flex;align-items:center;gap:8px; margin-bottom:6px;">
-      <span style="width:14px;height:14px;border-radius:50%;
-                   background:{thermal_color(thermal_sensation)};
-                   border:1px solid rgba(0,0,0,.1);display:inline-block;"></span>
-      <span style="opacity:.75;">value: {thermal_sensation}</span>
-    </span>
-    """,
+    chip(thermal_color(thermal_sensation), f"Thermal = {thermal_sensation}", "🌡️"),
     unsafe_allow_html=True,
 )
 
@@ -127,14 +152,7 @@ gradient_legend(glare_colors, glare_labels)
 
 # Live color chip for glare
 st.markdown(
-    f"""
-    <span style="display:inline-flex;align-items:center;gap:8px; margin-bottom:6px;">
-      <span style="width:14px;height:14px;border-radius:50%;
-                   background:{glare_color(glare_rating)};
-                   border:1px solid rgba(0,0,0,.1);display:inline-block;"></span>
-      <span style="opacity:.75;">value: {glare_rating}</span>
-    </span>
-    """,
+    chip(glare_color(glare_rating), f"Glare = {glare_rating}", "👀"),
     unsafe_allow_html=True,
 )
 
@@ -144,9 +162,84 @@ visual_notes = st.text_area("Visual notes (optional):", placeholder="e.g., glare
 st.markdown("---")
 
 # -----------------------------
-# 4) Clothing (what are you wearing)
+# 4) Sleepiness / Fatigue (KSS)
 # -----------------------------
-st.header("4) What are you wearing?")
+st.header("4) Sleepiness / Fatigue (KSS)")
+
+kss_options = [
+    "1 – Extremely alert",
+    "2 – Very alert",
+    "3 – Alert",
+    "4 – Rather alert",
+    "5 – Neither alert nor sleepy",
+    "6 – Some signs of sleepiness",
+    "7 – Sleepy, but no effort to stay awake",
+    "8 – Sleepy, some effort to stay awake",
+    "9 – Very sleepy, great effort to stay awake, fighting sleep",
+]
+kss_label = st.radio("How sleepy do you feel right now?", kss_options, index=2)
+kss_score = int(kss_label.split(" – ")[0])
+
+# KSS gradient (green → yellow → red)
+kss_colors = [
+    "#16a34a 0%", "#22c55e 12.5%", "#4ade80 25%",
+    "#a3e635 37.5%", "#eab308 50%",
+    "#f59e0b 62.5%", "#fb923c 75%", "#f97316 87.5%", "#ef4444 100%"
+]
+kss_labels = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+gradient_legend(kss_colors, kss_labels)
+
+st.markdown(
+    chip(kss_color(kss_score), f"KSS = {kss_score}", "🛌"),
+    unsafe_allow_html=True,
+)
+
+st.markdown("---")
+
+# -----------------------------
+# 5) Optional Physiology (HRV & Skin Temp)
+# -----------------------------
+with st.expander("🫀 Optional physiology (if wearing a device)"):
+    colp1, colp2 = st.columns(2)
+    with colp1:
+        rmssd_ms = st.number_input("HRV (RMSSD, ms)", min_value=0.0, step=1.0, help="Enter resting RMSSD if available.")
+    with colp2:
+        skin_temp_c = st.number_input("Skin temperature (°C)", min_value=0.0, step=0.1, help="Wrist or skin thermistor.")
+
+# -----------------------------
+# 6) Sensor Snapshot (optional manual entry)
+# -----------------------------
+with st.expander("🔎 Light & Air snapshot (optional)"):
+    coll1, coll2 = st.columns(2)
+    with coll1:
+        light_lux = st.number_input("Light level (lux)", min_value=0.0, step=1.0)
+    with coll2:
+        co2_ppm = st.number_input("CO₂ level (ppm)", min_value=0.0, step=50.0)
+
+st.markdown("---")
+
+# -----------------------------
+# Mini dashboard (pretty summary chips/cards)
+# -----------------------------
+st.subheader("Now")
+mc1, mc2, mc3, mc4, mc5 = st.columns(5)
+with mc1:
+    metric_card("KSS (sleepiness)", f"{kss_score}", "1 alert → 9 very sleepy", "🛌")
+with mc2:
+    metric_card("HRV (RMSSD)", f"{rmssd_ms if rmssd_ms else '—'} ms", "higher often → calmer", "🫀")
+with mc3:
+    metric_card("Skin Temp", f"{skin_temp_c if skin_temp_c else '—'} °C", "wrist/proximal", "🌡️")
+with mc4:
+    metric_card("Light", f"{light_lux if light_lux else '—'} lux", "task plane", "💡")
+with mc5:
+    metric_card("CO₂", f"{co2_ppm if co2_ppm else '—'} ppm", "ventilation proxy", "🫧")
+
+st.markdown("---")
+
+# -----------------------------
+# 7) Clothing (what are you wearing)
+# -----------------------------
+st.header("5) What are you wearing?")
 clothing_choice = st.selectbox("Select your main clothing layer:", ["T-shirt", "Sweater", "Jacket", "Coat", "Other"])
 clothing_other = st.text_input("Please specify:") if clothing_choice == "Other" else ""
 
@@ -183,6 +276,13 @@ with a2:
             "glare_rating": glare_rating,
             "task_affected": task_affected,
             "visual_notes": (visual_notes.strip() or None),
+
+            # KSS / physiology / sensors
+            "kss_score": kss_score,
+            "rmssd_ms": (float(rmssd_ms) if rmssd_ms else None),
+            "skin_temp_c": (float(skin_temp_c) if skin_temp_c else None),
+            "light_lux": (float(light_lux) if light_lux else None),
+            "co2_ppm": (float(co2_ppm) if co2_ppm else None),
 
             # clothing
             "clothing": (clothing_choice if clothing_choice != "Other" else (clothing_other.strip() or None)),
