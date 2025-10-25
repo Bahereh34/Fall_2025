@@ -43,24 +43,22 @@ type_filter = c2.selectbox(
 )
 
 # ---------- Query rows with audio ----------
-q = (
-    supabase.table(TABLE)
-    .select("*")
-    .not_.is_("audio_path", "null")   # rows where audio_path IS NOT NULL
-    .order("timestamp", desc=True)
-)
-if room_filter.strip():
-    q = q.ilike("room", f"%{room_filter.strip()}%")
-if type_filter != "(all)":
-    q = q.eq("feedback_type", type_filter)
+# --- Query rows (simple, then filter in Python) ---
+try:
+    res = (
+        supabase.table(TABLE)
+        .select("*")
+        .order("timestamp", desc=True)
+        .limit(1000)  # keep it reasonable
+        .execute()
+    )
+    rows = res.data or []
+except Exception as e:
+    st.error(f"Query failed: {e}")
+    rows = []
 
-res = q.execute()
-rows = res.data or []
-
-if not rows:
-    st.info("No recordings yet.")
-    st.stop()
-
+# Only keep rows that actually have audio
+rows = [r for r in rows if r.get("audio_path")]
 # ---------- List items ----------
 for r in rows:
     ts_raw = r.get("timestamp")
