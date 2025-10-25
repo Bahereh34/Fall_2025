@@ -217,61 +217,45 @@ clothing_val = clothing_choice if clothing_choice != "Other" else (clothing_othe
 st.markdown("---")
 
 # ----------------------------- 8) Optional Voice Note -----------------------------
+# ---- Voice Note (single component, clear UX) ----
+import io, time
+
 st.header("6) Optional Voice Note")
-st.caption("Record ≤15s about your comfort right now (e.g., “I feel tired and it’s cold near the door”). "
-           "Anonymous is OK. We store the file securely.")
+st.caption("Click once to start, click again to stop (≤15 s). If mic is blocked, allow it in the browser’s site settings.")
 
 audio_bytes = None
-audio_seconds = None
-voice_transcript = None
 audio_mime = "audio/wav"
 
-method_choices = []
-if HAS_AUDIOREC_A: method_choices.append("Mic recorder (Option A)")
-if HAS_AUDIOREC_B: method_choices.append("Mic recorder (Option B)")
-method_choices.append("Upload a file")
-method = st.radio("Recording method", method_choices, index=0)
+try:
+    from audio_recorder_streamlit import audio_recorder  # package: audio-recorder-streamlit
 
-if method == "Mic recorder (Option A)":
+    # Show recorder
+    st.write("**Recorder:**")
     raw = audio_recorder(
-        text="Click to record / stop (≤15s)", recording_color="#ef4444", neutral_color="#e5e7eb",
-        icon_size="2x", key="recorder_option_a"
+        text="Click to record / stop",
+        recording_color="#ef4444",
+        neutral_color="#e5e7eb",
+        icon_size="2x",
+        key="voice_recorder_a",
     )
+
+    # Note: this component returns bytes **only after you stop** (click again).
+    # You don't press-and-hold; it's click-to-toggle.
     if raw:
         audio_bytes = raw
         st.audio(io.BytesIO(audio_bytes), format=audio_mime)
+        st.success("Recorded! (If you need, click Reset form above before submitting.)")
 
-elif method == "Mic recorder (Option B)":
-    rec = audiorecorder("🎙️ Start recording", "🛑 Stop", key="recorder_option_b")
-    if len(rec) > 0:
-        buf = io.BytesIO()
-        rec.export(buf, format="wav")
-        buf.seek(0)
-        audio_bytes = buf.getvalue()
-        audio_seconds = round(len(rec) / 1000, 1)
-        st.audio(io.BytesIO(audio_bytes), format=audio_mime)
-        st.info(f"Duration: ~{audio_seconds} sec")
-
-else:
-    upload = st.file_uploader("Upload voice note (≤15s; wav/mp3/m4a)", type=["wav","mp3","m4a"])
+except Exception as e:
+    st.info("Microphone recorder unavailable on this device. You can upload a short audio file instead.")
+    upload = st.file_uploader("Upload voice note (≤15s; wav/mp3/m4a)", type=["wav", "mp3", "m4a"])
     if upload is not None:
         audio_bytes = upload.read()
         audio_mime = upload.type or "audio/wav"
         st.audio(io.BytesIO(audio_bytes), format=audio_mime)
 
-if audio_bytes and HAS_SR:
-    try:
-        r = sr.Recognizer()
-        wav_buf = io.BytesIO(audio_bytes)
-        with sr.AudioFile(wav_buf) as source:
-            audio_data = r.record(source)
-        voice_transcript = r.recognize_google(audio_data)
-        st.success("Transcript ready.")
-        st.write("📝", voice_transcript)
-    except Exception:
-        st.caption("Transcript not available (that’s OK).")
-
-voice_note_text = st.text_input("Short summary (optional)", placeholder="e.g., Tired; cold draft near window; glare on projector")
+# Optional manual summary
+voice_note_text = st.text_input("Short summary (optional)", placeholder="e.g., tired; cold draft near window; glare on projector")
 
 # ----------------------------- Submit / Reset -----------------------------
 a1, a2 = st.columns([1, 2])
@@ -339,5 +323,6 @@ with a2:
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
 # ------------------------- end file -------------------------
+
 
 
