@@ -34,7 +34,7 @@ host = urlparse(SUPABASE_URL).hostname or ""
 try:
     _ip = socket.gethostbyname(host)
     supabase.table(SENSORS_TABLE).select("id").limit(1).execute()
-    st.caption(f"✅ Supabase connected ({host} → {_ip}) · table='{SENSORS_TABLE}'")
+    #st.caption(f"✅ Supabase connected ({host} → {_ip}) · table='{SENSORS_TABLE}'")
 except Exception as e:
     st.error(f"❌ Supabase probe failed: {e}")
 
