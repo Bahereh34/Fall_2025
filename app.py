@@ -18,6 +18,23 @@ SUPABASE_BUCKET = st.secrets.get("SUPABASE_BUCKET", "voice-recordings")
 FEEDBACK_TABLE = st.secrets.get("SUPABASE_TABLE", "feedback")
 SENSORS_TABLE  = st.secrets.get("SENSORS_TABLE", "sensor_readings")
 
+#--------------------------------------
+
+url = st.secrets.get("SUPABASE_URL", "").strip()
+key = st.secrets.get("SUPABASE_KEY", "")
+
+st.write("🔎 Debug — Secrets check")
+st.write({"SUPABASE_URL": url, "len(SUPABASE_KEY)": len(key)})
+
+parsed = urlparse(url)
+host = parsed.hostname
+st.write({"parsed_scheme": parsed.scheme, "parsed_host": host})
+
+try:
+    ip = socket.gethostbyname(host) if host else None
+    st.write({"dns_ip": ip})
+except Exception as e:
+    st.write({"dns_error": str(e)})
 # (Use TABLE throughout the file for clarity)
 TABLE = FEEDBACK_TABLE
 
@@ -336,3 +353,4 @@ with a2:
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
 # ------------------------- end file -------------------------
+
