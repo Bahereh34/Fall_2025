@@ -7,6 +7,17 @@ from datetime import datetime, timezone
 from supabase import create_client, Client
 from postgrest import APIError
 
+from supabase import create_client, Client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+st.set_page_config(page_title="Comfort Dashboard", page_icon="📊", layout="wide")
+st.title("📊 Comfort Dashboard")
+try:
+    supabase.table("feedback").select("id").limit(1).execute()
+    st.caption("✅ Supabase connected")
+except Exception as e:
+    st.error(f"❌ Supabase probe failed: {e}")
+
+
 # ---------- Page config ----------
 st.set_page_config(page_title="Sensors Dashboard", page_icon="📟", layout="wide")
 st.title("📟 Sensor Readings")
