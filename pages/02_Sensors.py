@@ -1,80 +1,51 @@
-# ---- TOP OF FILE ----
-import streamlit as st
-st.set_page_config(page_title="Comfort Feedback", page_icon="📝", layout="wide")  # MUST be first Streamlit call
-
-from supabase import create_client, Client
-from urllib.parse import urlparse
+# -------------------- pages/02_Sensors.py (clean) --------------------
 import socket
+from urllib.parse import urlparse
+from datetime import datetime, timezone
 
-# Read secrets and normalize
-SUPABASE_URL  = st.secrets["SUPABASE_URL"].strip().rstrip("/")   # ensure no spaces or trailing slash
+import pandas as pd
+import streamlit as st
+from supabase import Client, create_client
+try:
+    # Nice error messages if Supabase returns API errors
+    from postgrest import APIError
+except Exception:
+    class APIError(Exception):  # fallback
+        pass
+
+# 1) Page config — must be FIRST Streamlit call
+st.set_page_config(page_title="Sensors Dashboard", page_icon="📟", layout="wide")
+st.title("📟 Sensor Readings")
+
+# 2) Secrets → vars (strip/normalize)
+SUPABASE_URL  = st.secrets["SUPABASE_URL"].strip().rstrip("/")
 SUPABASE_KEY  = st.secrets["SUPABASE_KEY"].strip()
-SUPABASE_BUCKET = st.secrets.get("SUPABASE_BUCKET", "voice-recordings")
-FEEDBACK_TABLE = st.secrets.get("SUPABASE_TABLE", "feedback")
-SENSORS_TABLE  = st.secrets.get("SENSORS_TABLE", "sensor_readings")
+SENSORS_TABLE = st.secrets.get("SENSORS_TABLE", "sensor_readings")
 
-# Create client (cache so reruns reuse it)
+# 3) One Supabase client (cached)
 @st.cache_resource
 def get_supabase() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 supabase = get_supabase()
 
-# --- quick DNS/connectivity probe (helps catch URL mistakes) ---
+# 4) Connectivity probe
 host = urlparse(SUPABASE_URL).hostname or ""
 try:
-    _ip = socket.gethostbyname(host)   # DNS resolve
-    # simple round-trip to the table
-    supabase.table(FEEDBACK_TABLE).select("id").limit(1).execute()
-    st.caption(f"✅ Supabase connected ({host} → {_ip})")
+    _ip = socket.gethostbyname(host)
+    supabase.table(SENSORS_TABLE).select("id").limit(1).execute()
+    st.caption(f"✅ Supabase connected ({host} → {_ip}) · table='{SENSORS_TABLE}'")
 except Exception as e:
     st.error(f"❌ Supabase probe failed: {e}")
-# --------------------------
 
-# pages/02_Sensors.py
-from __future__ import annotations
-
-import pandas as pd
-import streamlit as st
-from datetime import datetime, timezone
-from supabase import create_client, Client
-from postgrest import APIError
-
-
-# ---------- Page config ----------
-st.set_page_config(page_title="Sensors Dashboard", page_icon="📟", layout="wide")
-st.title("📟 Sensor Readings")
-
-# ---------- Supabase client ----------
-SUPABASE_URL: str = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY: str = st.secrets["SUPABASE_KEY"]          # service_role key recommended
-SENSORS_TABLE: str = st.secrets.get("SENSORS_TABLE", "sensor_readings")
-
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# Optional quick probe so you can see if we can reach the table
-def _probe_caption() -> None:
-    try:
-        probe = supabase.table(SENSORS_TABLE).select("id").limit(1).execute()
-        total = "?" if getattr(probe, "count", None) is None else probe.count
-        st.caption(f"Connected to Supabase · table='{SENSORS_TABLE}' · sample_rows={len(probe.data or [])}")
-    except Exception as e:
-        st.caption(f"Supabase probe failed: {e}")
-
-_probe_caption()
-
-# ---------- Data fetch (with good error messages) ----------
+# 5) Data fetch
 @st.cache_data(ttl=60)
 def fetch_sensors(limit: int = 5000) -> pd.DataFrame:
-    """
-    Pull latest sensor rows. If anything fails, show the concrete API message
-    and return an empty DataFrame (so the page doesn't crash).
-    """
     try:
         res = (
             supabase.table(SENSORS_TABLE)
             .select("*")
-            .order("ts", desc=True)         # expect a 'ts' timestamptz; we will fall back below
+            .order("ts", desc=True)      # expect 'ts' (timestamptz); we’ll fall back if needed
             .limit(limit)
             .execute()
         )
@@ -82,9 +53,7 @@ def fetch_sensors(limit: int = 5000) -> pd.DataFrame:
     except APIError as e:
         st.error(
             f"Supabase error → code={getattr(e, 'code', None)} | "
-            f"message={getattr(e, 'message', e)} | "
-            f"details={getattr(e, 'details', None)} | "
-            f"hint={getattr(e, 'hint', None)}"
+            f"message={getattr(e, 'message', e)} | details={getattr(e, 'details', None)}"
         )
         return pd.DataFrame()
     except Exception as e:
@@ -95,11 +64,8 @@ def fetch_sensors(limit: int = 5000) -> pd.DataFrame:
     if df.empty:
         return df
 
-    # Normalize timestamp column
-    tscol = "ts"
-    if tscol not in df.columns:
-        tscol = "timestamp" if "timestamp" in df.columns else None
-
+    # Normalize timestamp column to UTC
+    tscol = "ts" if "ts" in df.columns else ("timestamp" if "timestamp" in df.columns else None)
     if tscol is None:
         st.warning("No 'ts' or 'timestamp' column found; showing un-timed data.")
         return df
@@ -108,42 +74,42 @@ def fetch_sensors(limit: int = 5000) -> pd.DataFrame:
     df = df.dropna(subset=[tscol]).rename(columns={tscol: "ts"}).sort_values("ts")
     return df
 
-
 df = fetch_sensors()
 
-# ---------- Empty state ----------
+# 6) Empty state
 if df.empty:
     st.info("No sensor data yet. Use the insert tester below or your device to post readings.")
 else:
-    # ---------- Filters ----------
+    # 7) Filters
     top1, top2, top3 = st.columns(3)
     with top1:
         days_back = st.slider("Days back", min_value=1, max_value=30, value=7)
     with top2:
-        devs = ["(all)"] + sorted(map(str, df.get("device_id", pd.Series(dtype=str)).dropna().unique()))
-        dev_sel = st.selectbox("Device", devs)
+        dev_series = df["device_id"].astype(str) if "device_id" in df.columns else pd.Series(dtype=str)
+        dev_opt = ["(all)"] + sorted(dev_series.dropna().unique().tolist())
+        dev_sel = st.selectbox("Device", dev_opt)
     with top3:
-        rooms = ["(all)"] + sorted(map(str, df.get("room", pd.Series(dtype=str)).dropna().unique()))
-        room_sel = st.selectbox("Room", rooms)
+        room_series = df["room"].astype(str) if "room" in df.columns else pd.Series(dtype=str)
+        room_opt = ["(all)"] + sorted(room_series.dropna().unique().tolist())
+        room_sel = st.selectbox("Room", room_opt)
 
     cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days_back)
-
     mask = df["ts"] >= cutoff
-    if dev_sel != "(all)":
-        mask &= df.get("device_id", "") == dev_sel
-    if room_sel != "(all)":
-        mask &= df.get("room", "") == room_sel
+    if dev_sel != "(all)" and "device_id" in df.columns:
+        mask &= df["device_id"].astype(str) == dev_sel
+    if room_sel != "(all)" and "room" in df.columns:
+        mask &= df["room"].astype(str) == room_sel
 
     view = df.loc[mask].copy()
 
-    # ---------- KPIs ----------
+    # 8) KPIs
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("Rows", int(len(view)))
-    k2.metric("Devices", int(view.get("device_id", pd.Series(dtype=str)).nunique()))
+    k2.metric("Devices", int(view["device_id"].nunique()) if "device_id" in view.columns else 0)
     k3.metric("Avg CO₂ (ppm)", f"{view.get('co2_ppm', pd.Series(dtype=float)).dropna().mean():.0f}")
     k4.metric("Avg Lux", f"{view.get('lux', pd.Series(dtype=float)).dropna().mean():.0f}")
 
-    # ---------- Charts ----------
+    # 9) Charts
     if not view.empty:
         bin_rule = st.selectbox("Time bin", ["5min", "15min", "30min", "1H", "1D"], index=2)
         rs = view.set_index("ts").resample(bin_rule).mean(numeric_only=True)
@@ -160,7 +126,7 @@ else:
         st.subheader("Illuminance (lux)")
         st.line_chart(rs.get("lux"))
 
-    # ---------- Latest rows ----------
+    # 10) Latest rows
     st.subheader("Latest rows")
     st.dataframe(
         view.sort_values("ts", ascending=False).head(200),
@@ -168,7 +134,7 @@ else:
         height=380,
     )
 
-# ---------- Manual test insert ----------
+# 11) Manual test insert
 with st.expander("Manual test insert (for debugging)"):
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     with c1:
@@ -203,8 +169,8 @@ with st.expander("Manual test insert (for debugging)"):
         except APIError as e:
             st.error(
                 f"Insert failed → code={getattr(e, 'code', None)} | "
-                f"message={getattr(e, 'message', e)} | "
-                f"details={getattr(e, 'details', None)}"
+                f"message={getattr(e, 'message', e)} | details={getattr(e, 'details', None)}"
             )
         except Exception as e:
             st.error(f"Insert failed: {e}")
+# -------------------- end file --------------------
