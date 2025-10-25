@@ -1,23 +1,35 @@
-# ---- Top of each Streamlit page ----
+# ---- TOP OF FILE ----
 import streamlit as st
+st.set_page_config(page_title="Comfort Feedback", page_icon="📝", layout="wide")  # MUST be first Streamlit call
+
 from supabase import create_client, Client
+from urllib.parse import urlparse
+import socket
 
-# ✅ Read values from Streamlit Secrets
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+# Read secrets and normalize
+SUPABASE_URL  = st.secrets["SUPABASE_URL"].strip().rstrip("/")   # ensure no spaces or trailing slash
+SUPABASE_KEY  = st.secrets["SUPABASE_KEY"].strip()
 SUPABASE_BUCKET = st.secrets.get("SUPABASE_BUCKET", "voice-recordings")
-SUPABASE_TABLE = st.secrets.get("SUPABASE_TABLE", "feedback")
-SENSORS_TABLE = st.secrets.get("SENSORS_TABLE", "sensor_readings")
+FEEDBACK_TABLE = st.secrets.get("SUPABASE_TABLE", "feedback")
+SENSORS_TABLE  = st.secrets.get("SENSORS_TABLE", "sensor_readings")
 
-# ✅ Create client
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Create client (cache so reruns reuse it)
+@st.cache_resource
+def get_supabase() -> Client:
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Optional: quick probe to confirm connection
+supabase = get_supabase()
+
+# --- quick DNS/connectivity probe (helps catch URL mistakes) ---
+host = urlparse(SUPABASE_URL).hostname or ""
 try:
-    supabase.table(SUPABASE_TABLE).select("id").limit(1).execute()
-    st.caption("✅ Supabase connected")
+    _ip = socket.gethostbyname(host)   # DNS resolve
+    # simple round-trip to the table
+    supabase.table(FEEDBACK_TABLE).select("id").limit(1).execute()
+    st.caption(f"✅ Supabase connected ({host} → {_ip})")
 except Exception as e:
     st.error(f"❌ Supabase probe failed: {e}")
+# -
 # ------------------------------------
 
 # app.py
@@ -435,6 +447,7 @@ with a2:
             st.rerun()
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
+
 
 
 
