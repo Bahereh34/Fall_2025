@@ -247,6 +247,46 @@ clothing_other = st.text_input("Please specify:") if clothing_choice == "Other" 
 st.markdown("---")
 
 # -----------------------------
+# --- 6) Optional Voice Note (embedded at end of form) ---
+import io, uuid
+import speech_recognition as sr
+from audiorecorder import audiorecorder
+
+st.markdown("---")
+st.header("6) Optional Voice Note")
+st.caption("Record ≤15s about your comfort right now (e.g., “I feel tired and it’s cold near the door”). "
+           "Anonymous is OK. We store the file securely.")
+
+audio_bytes = None
+audio_seconds = None
+voice_transcript = None
+audio_mime = "audio/wav"
+
+audio = audiorecorder("🎙️ Start recording", "🛑 Stop")
+if len(audio) > 0:
+    wav_buf = io.BytesIO()
+    audio.export(wav_buf, format="wav")
+    wav_buf.seek(0)
+
+    audio_bytes = wav_buf.getvalue()
+    audio_seconds = round(len(audio) / 1000, 1)  # audiorecorder len() returns ms
+
+    st.audio(wav_buf, format=audio_mime)
+    st.info(f"Duration: ~{audio_seconds} sec")
+
+    # Transcribe (best-effort)
+    try:
+        st.write("Transcribing…")
+        r = sr.Recognizer()
+        wav_buf.seek(0)
+        with sr.AudioFile(wav_buf) as source:
+            audio_data = r.record(source)
+        voice_transcript = r.recognize_google(audio_data)
+        st.success("Transcript ready.")
+        st.write("📝", voice_transcript)
+    except Exception as e:
+        st.warning(f"Transcription skipped: {e}")
+#------------------------------
 # Actions: Reset + Submit
 # -----------------------------
 a1, a2 = st.columns([1, 2])
@@ -295,4 +335,5 @@ with a2:
             st.rerun()  # clear the form after success
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
+
 
