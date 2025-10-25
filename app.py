@@ -225,6 +225,8 @@ st.caption("Click once to start, click again to stop (≤15 s). If mic is blocke
 
 audio_bytes = None
 audio_mime = "audio/wav"
+audio_seconds = None          # <-- add this line
+voice_transcript = None
 
 try:
     from audio_recorder_streamlit import audio_recorder  # package: audio-recorder-streamlit
@@ -323,6 +325,7 @@ with a2:
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
 # ------------------------- end file -------------------------
+
 
 
 
