@@ -26,7 +26,7 @@ host = urlparse(SUPABASE_URL).hostname or ""
 try:
     _ip = socket.gethostbyname(host)
     supabase.table(FEEDBACK_TABLE).select("id").limit(1).execute()
-    st.caption(f"✅ Supabase connected ({host} → {_ip})")
+    #st.caption(f"✅ Supabase connected ({host} → {_ip})")
 except Exception as e:
     st.error(f"❌ Supabase probe failed: {e}")
 
