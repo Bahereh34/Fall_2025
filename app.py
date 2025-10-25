@@ -1,50 +1,54 @@
-# ---- TOP OF FILE ----
-import streamlit as st
-st.set_page_config(page_title="Comfort Feedback", page_icon="📝", layout="wide")  # MUST be first Streamlit call
-
-from supabase import create_client, Client
-from urllib.parse import urlparse
+# ------------------------- app.py (clean start) -------------------------
+import io
+import uuid
 import socket
+from datetime import datetime, timezone
+from urllib.parse import urlparse
 
-# Read secrets and normalize
-SUPABASE_URL  = st.secrets["SUPABASE_URL"].strip().rstrip("/")   # ensure no spaces or trailing slash
+import streamlit as st
+from supabase import create_client, Client
+
+# 1) Page config — MUST be the first Streamlit command
+st.set_page_config(page_title="Comfort Feedback", page_icon="📝", layout="centered")
+
+# 2) Secrets -> variables (strip whitespace; remove trailing '/')
+SUPABASE_URL  = st.secrets["SUPABASE_URL"].strip().rstrip("/")
 SUPABASE_KEY  = st.secrets["SUPABASE_KEY"].strip()
 SUPABASE_BUCKET = st.secrets.get("SUPABASE_BUCKET", "voice-recordings")
 FEEDBACK_TABLE = st.secrets.get("SUPABASE_TABLE", "feedback")
 SENSORS_TABLE  = st.secrets.get("SENSORS_TABLE", "sensor_readings")
 
-# Create client (cache so reruns reuse it)
+# (Use TABLE throughout the file for clarity)
+TABLE = FEEDBACK_TABLE
+
+# 3) Create a single Supabase client (cached)
 @st.cache_resource
 def get_supabase() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 supabase = get_supabase()
 
-# --- quick DNS/connectivity probe (helps catch URL mistakes) ---
+# 4) Connectivity probe (helps catch URL/key typos)
 host = urlparse(SUPABASE_URL).hostname or ""
 try:
-    _ip = socket.gethostbyname(host)   # DNS resolve
-    # simple round-trip to the table
-    supabase.table(FEEDBACK_TABLE).select("id").limit(1).execute()
-    st.caption(f"✅ Supabase connected ({host} → {_ip})")
+    resolved_ip = socket.gethostbyname(host)        # DNS resolve
+    supabase.table(TABLE).select("id").limit(1).execute()  # simple round-trip
+    st.caption(f"✅ Supabase connected ({host} → {resolved_ip})")
 except Exception as e:
     st.error(f"❌ Supabase probe failed: {e}")
-# -
-# ------------------------------------
 
-# app.py
-import io
-import uuid
-from datetime import datetime, timezone
-import streamlit as st
-from supabase import create_client, Client
-
-# Optional deps (graceful fallback if missing)
+# 5) Optional deps (graceful fallbacks)
 try:
-    from audiorecorder import audiorecorder
-    HAS_AUDIOREC = True
+    from audiorecorder import audiorecorder  # streamlit-audiorecorder
+    HAS_AUDIOREC_B = True
 except Exception:
-    HAS_AUDIOREC = False
+    HAS_AUDIOREC_B = False
+
+try:
+    from audio_recorder_streamlit import audio_recorder  # audio-recorder-streamlit
+    HAS_AUDIOREC_A = True
+except Exception:
+    HAS_AUDIOREC_A = False
 
 try:
     import speech_recognition as sr
@@ -52,16 +56,8 @@ try:
 except Exception:
     HAS_SR = False
 
-# -----------------------------
-# Page config
-# -----------------------------
-st.set_page_config(page_title="Comfort Feedback", page_icon="📝", layout="centered")
-
-# -----------------------------
-# UI helpers
-# -----------------------------
+# ----------------------------- UI helpers -----------------------------
 def gradient_legend(colors: list[str], labels: list[str], height: int = 10):
-    """Draw a horizontal gradient bar with evenly spaced labels underneath."""
     bar = f"linear-gradient(90deg, {', '.join(colors)})"
     ticks = "".join([f"<span>{lbl}</span>" for lbl in labels])
     st.markdown(
@@ -79,24 +75,13 @@ def gradient_legend(colors: list[str], labels: list[str], height: int = 10):
     )
 
 def thermal_color(v: int) -> str:
-    # -3..+3 → blue→red palette
-    return {
-        -3: "#1e3a8a", -2: "#2563eb", -1: "#60a5fa",
-         0: "#e5e7eb",  1: "#fdba74",  2: "#f97316",  3: "#dc2626"
-    }[int(v)]
+    return {-3:"#1e3a8a",-2:"#2563eb",-1:"#60a5fa",0:"#e5e7eb",1:"#fdba74",2:"#f97316",3:"#dc2626"}[int(v)]
 
 def glare_color(v: int) -> str:
-    # 1..5 → black→yellow
-    return {1:"#000000", 2:"#4b5563", 3:"#9ca3af", 4:"#f59e0b", 5:"#fde047"}[int(v)]
+    return {1:"#000000",2:"#4b5563",3:"#9ca3af",4:"#f59e0b",5:"#fde047"}[int(v)]
 
 def kss_color(score: int) -> str:
-    # 1..9 (alert → sleepy): green → yellow → red
-    scale = {
-        1:"#16a34a", 2:"#22c55e", 3:"#4ade80",
-        4:"#a3e635", 5:"#eab308",
-        6:"#f59e0b", 7:"#fb923c", 8:"#f97316", 9:"#ef4444"
-    }
-    return scale[int(score)]
+    return {1:"#16a34a",2:"#22c55e",3:"#4ade80",4:"#a3e635",5:"#eab308",6:"#f59e0b",7:"#fb923c",8:"#f97316",9:"#ef4444"}[int(score)]
 
 def chip(color: str, text: str, icon: str = "") -> None:
     st.markdown(
@@ -125,131 +110,82 @@ def metric_card(title: str, value: str, sub: str = "", icon: str = ""):
         unsafe_allow_html=True
     )
 
-# -----------------------------
-# Supabase (read from Streamlit secrets)
-# -----------------------------
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-BUCKET = st.secrets.get("SUPABASE_BUCKET", "voice-recordings")
-TABLE = st.secrets.get("SUPABASE_TABLE", "feedback")
-
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# -----------------------------
-# Title + meta fields
-# -----------------------------
+# ----------------------------- Title & meta -----------------------------
 st.title("📝 Classroom Comfort Feedback")
-
 col1, col2 = st.columns(2)
 with col1:
     room = st.text_input("Room/Location (optional)")
 with col2:
     user_id = st.text_input("User ID (optional)")
-
 st.markdown("---")
 
-# -----------------------------
-# 1) Thermal Comfort
-# -----------------------------
+# ----------------------------- 1) Thermal -----------------------------
 st.header("1) Thermal Comfort")
 thermal_sensation = st.slider(
     "Thermal sensation (ASHRAE 7-point)",
     min_value=-3, max_value=3, value=0,
     help="-3 Cold · -2 Cool · -1 Slightly Cool · 0 Neutral · +1 Slightly Warm · +2 Warm · +3 Hot",
 )
-thermal_colors = [
-    "#1e3a8a 0%", "#2563eb 16.6%", "#60a5fa 33.3%",
-    "#e5e7eb 50%", "#fdba74 66.6%", "#f97316 83.3%", "#dc2626 100%"
-]
-thermal_labels = ["Cold", "Cool", "Slightly cool", "Neutral", "Slightly warm", "Warm", "Hot"]
-gradient_legend(thermal_colors, thermal_labels)
+gradient_legend(
+    ["#1e3a8a 0%","#2563eb 16.6%","#60a5fa 33.3%","#e5e7eb 50%","#fdba74 66.6%","#f97316 83.3%","#dc2626 100%"],
+    ["Cold","Cool","Slightly cool","Neutral","Slightly warm","Warm","Hot"]
+)
 chip(thermal_color(thermal_sensation), f"Thermal = {thermal_sensation}", "🌡️")
-
-thermal_preference = st.radio("Do you want it…", ["No change", "Warmer", "Cooler"], horizontal=True)
-air_movement = st.radio("Air movement feels…", ["Still", "Slight breeze", "Drafty"], horizontal=True)
+thermal_preference = st.radio("Do you want it…", ["No change","Warmer","Cooler"], horizontal=True)
+air_movement = st.radio("Air movement feels…", ["Still","Slight breeze","Drafty"], horizontal=True)
 thermal_notes = st.text_area("Thermal notes (optional):", placeholder="e.g., warm near window; stuffy air…")
-
 st.markdown("---")
 
-# -----------------------------
-# 2) Visual Comfort
-# -----------------------------
+# ----------------------------- 2) Visual -----------------------------
 st.header("2) Visual Comfort")
-brightness = st.radio("Brightness level:", ["Too dim", "OK", "Too bright"], horizontal=True)
+brightness = st.radio("Brightness level:", ["Too dim","OK","Too bright"], horizontal=True)
 glare_rating = st.slider("Glare discomfort (1=no glare, 5=severe glare)", 1, 5, 2)
-glare_colors = ["#000000 0%", "#6b7280 50%", "#fde047 100%"]
-glare_labels = ["Dark", "OK", "Too bright"]
-gradient_legend(glare_colors, glare_labels)
+gradient_legend(["#000000 0%","#6b7280 50%","#fde047 100%"], ["Dark","OK","Too bright"])
 chip(glare_color(glare_rating), f"Glare = {glare_rating}", "👀")
-
 task_affected = st.checkbox("Glare/brightness is affecting my task (screen/board/paper)")
 visual_notes = st.text_area("Visual notes (optional):", placeholder="e.g., glare on screen; board is hard to read…")
-
 st.markdown("---")
 
-# -----------------------------
-# 3) Feeling / Concentration (moved before KSS)
-# -----------------------------
+# ----------------------------- 3) Feeling / Concentration -----------------------------
 st.header("3) Feeling / Concentration")
-mood = st.selectbox(
-    "How do you feel right now?",
-    ["Happy", "Content/Neutral", "Tired", "Stressed/Anxious", "Irritated", "Other"],
-)
+mood = st.selectbox("How do you feel right now?", ["Happy","Content/Neutral","Tired","Stressed/Anxious","Irritated","Other"])
 mood_other = st.text_input("Please specify your feeling:") if mood == "Other" else ""
 concentration = st.slider("How focused were you during the last 10 minutes?", 0, 10, 5,
                           help="0 = Not focused at all · 10 = Extremely focused")
 productivity = st.slider("How productive do you feel right now?", 0, 10, 5,
                          help="0 = Not productive · 10 = Extremely productive")
-feeling_notes = st.text_area(
-    "Tell us a bit more (optional):",
-    placeholder="e.g., Feeling distracted by temperature or lighting...",
-)
-
+feeling_notes = st.text_area("Tell us a bit more (optional):", placeholder="e.g., Feeling distracted by temperature or lighting...")
 st.markdown("---")
 
-# -----------------------------
-# 4) Sleepiness / Fatigue (KSS)
-# -----------------------------
+# ----------------------------- 4) KSS -----------------------------
 st.header("4) Sleepiness / Fatigue (KSS)")
 kss_options = [
-    "1 – Extremely alert",
-    "2 – Very alert",
-    "3 – Alert",
-    "4 – Rather alert",
-    "5 – Neither alert nor sleepy",
-    "6 – Some signs of sleepiness",
-    "7 – Sleepy, but no effort to stay awake",
-    "8 – Sleepy, some effort to stay awake",
-    "9 – Very sleepy, great effort to stay awake, fighting sleep",
+    "1 – Extremely alert","2 – Very alert","3 – Alert","4 – Rather alert","5 – Neither alert nor sleepy",
+    "6 – Some signs of sleepiness","7 – Sleepy, but no effort to stay awake",
+    "8 – Sleepy, some effort to stay awake","9 – Very sleepy, great effort to stay awake, fighting sleep",
 ]
 kss_label = st.radio("How sleepy do you feel right now?", kss_options, index=2)
 kss_score = int(kss_label.split(" – ")[0])
-kss_colors = [
-    "#16a34a 0%", "#22c55e 12.5%", "#4ade80 25%",
-    "#a3e635 37.5%", "#eab308 50%",
-    "#f59e0b 62.5%", "#fb923c 75%", "#f97316 87.5%", "#ef4444 100%"
-]
-kss_labels = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
-gradient_legend(kss_colors, kss_labels)
+gradient_legend(
+    ["#16a34a 0%","#22c55e 12.5%","#4ade80 25%","#a3e635 37.5%","#eab308 50%","#f59e0b 62.5%","#fb923c 75%","#f97316 87.5%","#ef4444 100%"],
+    ["1","2","3","4","5","6","7","8","9"]
+)
 chip(kss_color(kss_score), f"KSS = {kss_score}", "🛌")
-
 st.markdown("---")
 
-# -----------------------------
-# 5) Optional Physiology (HRV & Skin Temp)
-# -----------------------------
+# ----------------------------- 5) Optional Physiology -----------------------------
 with st.expander("🫀 Optional physiology (if wearing a device)"):
     colp1, colp2 = st.columns(2)
     with colp1:
-        rmssd_ms = st.number_input("HRV (RMSSD, ms)", min_value=0.0, step=1.0, help="Enter resting RMSSD if available.")
+        rmssd_ms = st.number_input("HRV (RMSSD, ms)", min_value=0.0, step=1.0,
+                                   help="Enter resting RMSSD if available.")
     with colp2:
-        skin_temp_c = st.number_input("Skin temperature (°C)", min_value=0.0, step=0.1, help="Wrist or skin thermistor.")
+        skin_temp_c = st.number_input("Skin temperature (°C)", min_value=0.0, step=0.1,
+                                      help="Wrist or skin thermistor.")
 if "rmssd_ms" not in locals(): rmssd_ms = None
 if "skin_temp_c" not in locals(): skin_temp_c = None
 
-# -----------------------------
-# 6) Sensor Snapshot (optional manual entry)
-# -----------------------------
+# ----------------------------- 6) Sensor snapshot -----------------------------
 with st.expander("🔎 Light & Air snapshot (optional)"):
     coll1, coll2 = st.columns(2)
     with coll1:
@@ -258,105 +194,70 @@ with st.expander("🔎 Light & Air snapshot (optional)"):
         co2_ppm = st.number_input("CO₂ level (ppm)", min_value=0.0, step=50.0)
 if "light_lux" not in locals(): light_lux = None
 if "co2_ppm" not in locals(): co2_ppm = None
-
 st.markdown("---")
 
-# -----------------------------
-# Mini dashboard (pretty summary)
-# -----------------------------
+# ----------------------------- Mini dashboard -----------------------------
 st.subheader("Now")
 mc1, mc2, mc3, mc4, mc5 = st.columns(5)
-with mc1:
-    metric_card("KSS (sleepiness)", f"{kss_score}", "1 alert → 9 very sleepy", "🛌")
-with mc2:
-    metric_card("HRV (RMSSD)", f"{rmssd_ms if rmssd_ms else '—'} ms", "higher often → calmer", "🫀")
-with mc3:
-    metric_card("Skin Temp", f"{skin_temp_c if skin_temp_c else '—'} °C", "wrist/proximal", "🌡️")
-with mc4:
-    metric_card("Light", f"{light_lux if light_lux else '—'} lux", "task plane", "💡")
-with mc5:
-    metric_card("CO₂", f"{co2_ppm if co2_ppm else '—'} ppm", "ventilation proxy", "🫧")
-
+with mc1: metric_card("KSS (sleepiness)", f"{kss_score}", "1 alert → 9 very sleepy", "🛌")
+with mc2: metric_card("HRV (RMSSD)", f"{rmssd_ms if rmssd_ms else '—'} ms", "higher often → calmer", "🫀")
+with mc3: metric_card("Skin Temp", f"{skin_temp_c if skin_temp_c else '—'} °C", "wrist/proximal", "🌡️")
+with mc4: metric_card("Light", f"{light_lux if light_lux else '—'} lux", "task plane", "💡")
+with mc5: metric_card("CO₂", f"{co2_ppm if co2_ppm else '—'} ppm", "ventilation proxy", "🫧")
 st.markdown("---")
 
-# -----------------------------
-# 7) Clothing (what are you wearing)
-# -----------------------------
+# ----------------------------- 7) Clothing -----------------------------
 st.header("5) What are you wearing?")
-clothing_choice = st.selectbox("Select your main clothing layer:", ["T-shirt", "Sweater", "Jacket", "Coat", "Other"])
-clothing_other = st.text_input("Please specify:") if clothing_choice == "Other" else ""
+clothing_choice = st.selectbox("Select your main clothing layer:", ["T-shirt","Sweater","Jacket","Coat","Other"])
+clothing_other  = st.text_input("Please specify:") if clothing_choice == "Other" else ""
 clothing_val = clothing_choice if clothing_choice != "Other" else (clothing_other.strip() or None)
-
 st.markdown("---")
 
-# -----------------------------
-# ---------- Optional Voice Note (single active recorder + unique keys) ----------
-import io, uuid
-from datetime import datetime
-import streamlit as st
+# ----------------------------- 8) Optional Voice Note -----------------------------
+st.header("6) Optional Voice Note")
+st.caption("Record ≤15s about your comfort right now (e.g., “I feel tired and it’s cold near the door”). "
+           "Anonymous is OK. We store the file securely.")
 
 audio_bytes = None
 audio_seconds = None
 voice_transcript = None
 audio_mime = "audio/wav"
 
-st.header("6) Optional Voice Note")
-st.caption(
-    "Record ≤15s about your comfort right now (e.g., “I feel tired and it’s cold near the door”). "
-    "Anonymous is OK. We store the file securely."
-)
-
-method = st.radio(
-    "Recording method",
-    ["Mic recorder (Option A)", "Mic recorder (Option B)", "Upload a file"],
-    index=0,
-    help="If A doesn’t work in your browser, try B. Otherwise upload a short audio file."
-)
+method_choices = []
+if HAS_AUDIOREC_A: method_choices.append("Mic recorder (Option A)")
+if HAS_AUDIOREC_B: method_choices.append("Mic recorder (Option B)")
+method_choices.append("Upload a file")
+method = st.radio("Recording method", method_choices, index=0)
 
 if method == "Mic recorder (Option A)":
-    try:
-        from audio_recorder_streamlit import audio_recorder  # package: audio-recorder-streamlit
-        raw = audio_recorder(
-            text="Click to record / stop (≤15s)",
-            recording_color="#ef4444",
-            neutral_color="#e5e7eb",
-            icon_size="2x",
-            key="recorder_option_a",  # UNIQUE KEY
-        )
-        if raw:
-            audio_bytes = raw
-            audio_mime = "audio/wav"
-            st.audio(io.BytesIO(audio_bytes), format=audio_mime)
-    except Exception as e:
-        st.warning(f"Recorder A unavailable: {e}")
+    raw = audio_recorder(
+        text="Click to record / stop (≤15s)", recording_color="#ef4444", neutral_color="#e5e7eb",
+        icon_size="2x", key="recorder_option_a"
+    )
+    if raw:
+        audio_bytes = raw
+        st.audio(io.BytesIO(audio_bytes), format=audio_mime)
 
 elif method == "Mic recorder (Option B)":
-    try:
-        from audiorecorder import audiorecorder  # package: streamlit-audiorecorder
-        rec = audiorecorder("🎙️ Start recording", "🛑 Stop", key="recorder_option_b")  # UNIQUE KEY
-        if len(rec) > 0:
-            buf = io.BytesIO()
-            rec.export(buf, format="wav")  # requires pydub + (optionally) ffmpeg
-            buf.seek(0)
-            audio_bytes = buf.getvalue()
-            audio_seconds = round(len(rec) / 1000, 1)  # ms → s
-            audio_mime = "audio/wav"
-            st.audio(io.BytesIO(audio_bytes), format=audio_mime)
-            st.info(f"Duration: ~{audio_seconds} sec")
-    except Exception as e:
-        st.warning(f"Recorder B unavailable: {e}")
+    rec = audiorecorder("🎙️ Start recording", "🛑 Stop", key="recorder_option_b")
+    if len(rec) > 0:
+        buf = io.BytesIO()
+        rec.export(buf, format="wav")
+        buf.seek(0)
+        audio_bytes = buf.getvalue()
+        audio_seconds = round(len(rec) / 1000, 1)
+        st.audio(io.BytesIO(audio_bytes), format=audio_mime)
+        st.info(f"Duration: ~{audio_seconds} sec")
 
-else:  # Upload a file
-    upload = st.file_uploader("Upload voice note (≤15s; wav/mp3/m4a)", type=["wav", "mp3", "m4a"])
+else:
+    upload = st.file_uploader("Upload voice note (≤15s; wav/mp3/m4a)", type=["wav","mp3","m4a"])
     if upload is not None:
         audio_bytes = upload.read()
         audio_mime = upload.type or "audio/wav"
         st.audio(io.BytesIO(audio_bytes), format=audio_mime)
 
-# Optional best-effort transcript
-if audio_bytes:
+if audio_bytes and HAS_SR:
     try:
-        import speech_recognition as sr
         r = sr.Recognizer()
         wav_buf = io.BytesIO(audio_bytes)
         with sr.AudioFile(wav_buf) as source:
@@ -367,13 +268,9 @@ if audio_bytes:
     except Exception:
         st.caption("Transcript not available (that’s OK).")
 
-voice_note_text = st.text_input(
-    "Short summary (optional)",
-    placeholder="e.g., Tired; cold draft near window; glare on projector"
-)
-# -----------------------------
-# Actions: Reset + Submit
-# -----------------------------
+voice_note_text = st.text_input("Short summary (optional)", placeholder="e.g., Tired; cold draft near window; glare on projector")
+
+# ----------------------------- Submit / Reset -----------------------------
 a1, a2 = st.columns([1, 2])
 with a1:
     if st.button("Reset form"):
@@ -381,58 +278,50 @@ with a1:
 
 with a2:
     if st.button("Submit Feedback", type="primary"):
-        # Base payload
-        data = {
+        payload = {
             "id": str(uuid.uuid4()),
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "room": (room or None),
             "user_id": (user_id or None),
-
             # thermal
             "thermal_sensation": thermal_sensation,
             "thermal_preference": thermal_preference,
             "air_movement": air_movement,
             "thermal_notes": (thermal_notes.strip() or None),
-
             # visual
             "brightness": brightness,
             "glare_rating": glare_rating,
             "task_affected": task_affected,
             "visual_notes": (visual_notes.strip() or None),
-
-            # feeling / concentration
+            # feeling
             "mood": (mood if mood != "Other" else (mood_other.strip() or None)),
             "concentration": concentration,
             "productivity": productivity,
             "feeling_notes": (feeling_notes.strip() or None),
-
             # KSS / physiology / sensors
             "kss_score": kss_score,
             "rmssd_ms": (float(rmssd_ms) if rmssd_ms else None),
             "skin_temp_c": (float(skin_temp_c) if skin_temp_c else None),
             "light_lux": (float(light_lux) if light_lux else None),
             "co2_ppm": (float(co2_ppm) if co2_ppm else None),
-
             # clothing
             "clothing": clothing_val,
         }
 
-        # Upload audio if present
+        # Upload audio (private bucket)
         audio_path = None
         if audio_bytes:
             try:
                 fname = f"voice/{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex}.wav"
-                supabase.storage.from_(BUCKET).upload(
-                    path=fname,
-                    file=audio_bytes,
+                supabase.storage.from_(SUPABASE_BUCKET).upload(
+                    path=fname, file=audio_bytes,
                     file_options={"content-type": audio_mime, "x-upsert": "true"},
                 )
                 audio_path = fname
             except Exception as e:
                 st.error(f"⚠️ Audio upload failed: {e}")
 
-        # Add voice fields
-        data.update({
+        payload.update({
             "audio_path": audio_path,
             "audio_mime": (audio_mime if audio_path else None),
             "audio_seconds": (audio_seconds or None),
@@ -440,15 +329,10 @@ with a2:
             "voice_note_text": (voice_note_text.strip() or None),
         })
 
-        # Insert row
         try:
-            supabase.table(TABLE).insert(data).execute()
+            supabase.table(TABLE).insert(payload).execute()
             st.success("✅ Thanks! Your feedback was submitted.")
             st.rerun()
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
-
-
-
-
-
+# ------------------------- end file -------------------------
