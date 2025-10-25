@@ -1,71 +1,51 @@
-# ---- TOP OF FILE ----
-import streamlit as st
-st.set_page_config(page_title="Comfort Feedback", page_icon="📝", layout="wide")  # MUST be first Streamlit call
-
-from supabase import create_client, Client
-from urllib.parse import urlparse
+# -------------------- 01_Dashboard.py (clean) --------------------
 import socket
+from urllib.parse import urlparse
 
-# Read secrets and normalize
-SUPABASE_URL  = st.secrets["SUPABASE_URL"].strip().rstrip("/")   # ensure no spaces or trailing slash
+import pandas as pd
+import streamlit as st
+from supabase import Client, create_client
+
+# 1) Page config — must be FIRST Streamlit call
+st.set_page_config(page_title="Comfort Dashboard", page_icon="📊", layout="wide")
+
+# 2) Secrets → vars (strip/normalize)
+SUPABASE_URL  = st.secrets["SUPABASE_URL"].strip().rstrip("/")
 SUPABASE_KEY  = st.secrets["SUPABASE_KEY"].strip()
-SUPABASE_BUCKET = st.secrets.get("SUPABASE_BUCKET", "voice-recordings")
 FEEDBACK_TABLE = st.secrets.get("SUPABASE_TABLE", "feedback")
-SENSORS_TABLE  = st.secrets.get("SENSORS_TABLE", "sensor_readings")
 
-# Create client (cache so reruns reuse it)
+# 3) One Supabase client (cached)
 @st.cache_resource
 def get_supabase() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 supabase = get_supabase()
 
-# --- quick DNS/connectivity probe (helps catch URL mistakes) ---
+# 4) Connectivity probe
 host = urlparse(SUPABASE_URL).hostname or ""
 try:
-    _ip = socket.gethostbyname(host)   # DNS resolve
-    # simple round-trip to the table
+    _ip = socket.gethostbyname(host)
     supabase.table(FEEDBACK_TABLE).select("id").limit(1).execute()
     st.caption(f"✅ Supabase connected ({host} → {_ip})")
 except Exception as e:
     st.error(f"❌ Supabase probe failed: {e}")
-# --------------------------
 
-
-import streamlit as st
-import pandas as pd
-from supabase import create_client, Client
-from datetime import timedelta
-from supabase import create_client, Client
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-st.set_page_config(page_title="Comfort Dashboard", page_icon="📊", layout="wide")
 st.title("📊 Comfort Dashboard")
-try:
-    supabase.table("feedback").select("id").limit(1).execute()
-    st.caption("✅ Supabase connected")
-except Exception as e:
-    st.error(f"❌ Supabase probe failed: {e}")
 
-# --- Supabase client (from Streamlit secrets) ---
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
+# -------- Data fetch --------
 @st.cache_data(ttl=60)
-def fetch_feedback(limit=2000) -> pd.DataFrame:
+def fetch_feedback(limit: int = 2000) -> pd.DataFrame:
     res = (
-        supabase.table("feedback")
+        supabase.table(FEEDBACK_TABLE)
         .select("*")
         .order("timestamp", desc=True)
         .limit(limit)
         .execute()
     )
     df = pd.DataFrame(res.data or [])
-
     if df.empty:
         return df
 
-    # Find the time column and make it timezone-aware UTC
     time_col = "timestamp" if "timestamp" in df.columns else ("ts" if "ts" in df.columns else None)
     if time_col:
         df[time_col] = pd.to_datetime(df[time_col], errors="coerce", utc=True)
@@ -78,18 +58,17 @@ if df.empty:
     st.info("No feedback yet. Submit some entries on the main page.")
     st.stop()
 
-# --- Filters ---
+# -------- Filters --------
 c1, c2, c3 = st.columns(3)
 with c1:
     days_back = st.slider("Days back", 1, 30, 7)
 with c2:
-    room_opt = ["(all)"] + sorted([r for r in df["room"].dropna().unique()]) if "room" in df else ["(all)"]
+    room_opt = ["(all)"] + sorted(df["room"].dropna().unique()) if "room" in df else ["(all)"]
     room_sel = st.selectbox("Room", room_opt)
 with c3:
-    clothing_opt = ["(all)"] + sorted([c for c in df["clothing"].dropna().unique()]) if "clothing" in df else ["(all)"]
+    clothing_opt = ["(all)"] + sorted(df["clothing"].dropna().unique()) if "clothing" in df else ["(all)"]
     clothing_sel = st.selectbox("Clothing", clothing_opt)
 
-# Use a timezone-aware UTC cutoff to match the parsed timestamps
 cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days_back)
 
 mask = df["timestamp"] >= cutoff
@@ -103,17 +82,19 @@ if view.empty:
     st.warning("No rows match the current filters.")
     st.stop()
 
-# --- KPIs ---
+# -------- KPIs --------
 k1, k2, k3, k4 = st.columns(4)
 k1.metric("Submissions", len(view))
 k2.metric("Rooms", view["room"].nunique() if "room" in view else 0)
-k3.metric("Avg thermal sensation",
-          f'{view.get("thermal_sensation", pd.Series(dtype=float)).dropna().mean():.2f}')
+k3.metric(
+    "Avg thermal sensation",
+    f'{view.get("thermal_sensation", pd.Series(dtype=float)).dropna().mean():.2f}'
+)
 k4.metric("Glare ≥ 4", int((view.get("glare_rating", pd.Series(dtype=float)) >= 4).sum()))
 
 st.markdown("---")
 
-# --- Charts ---
+# -------- Charts --------
 if "thermal_sensation" in view:
     st.subheader("Thermal sensation (counts)")
     st.bar_chart(view["thermal_sensation"].value_counts().sort_index())
@@ -136,7 +117,7 @@ st.subheader("Latest rows")
 n = st.slider("Rows to show", 50, 1000, 200, step=50)
 st.dataframe(view.sort_values("timestamp", ascending=False).head(n), use_container_width=True)
 
-# Optional quick refresh
 if st.button("🔄 Refresh data"):
     st.cache_data.clear()
     st.rerun()
+# ------------------ end file ------------------
