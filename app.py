@@ -36,7 +36,7 @@ host = urlparse(SUPABASE_URL).hostname or ""
 try:
     resolved_ip = socket.gethostbyname(host)        # DNS resolve
     supabase.table(TABLE).select("id").limit(1).execute()  # simple round-trip
-    st.caption(f"✅ Supabase connected ({host} → {resolved_ip})")
+    #st.caption(f"✅ Supabase connected ({host} → {resolved_ip})")
 except Exception as e:
     st.error(f"❌ Supabase probe failed: {e}")
 
@@ -325,6 +325,7 @@ with a2:
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
 # ------------------------- end file -------------------------
+
 
 
 
