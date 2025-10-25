@@ -93,22 +93,7 @@ with col2:
 st.markdown("---")
 
 # -----------------------------
-# 1) Feeling
-# -----------------------------
-st.header("1) Feeling")
-mood = st.selectbox(
-    "How do you feel right now?",
-    ["Happy", "Content/Neutral", "Tired", "Stressed/Anxious", "Irritated", "Other"],
-)
-mood_other = st.text_input("Please specify your feeling:") if mood == "Other" else ""
-feeling_notes = st.text_area(
-    "Tell us a bit more (optional):",
-    placeholder="e.g., I’m a bit tired after lunch; noise is distracting…",
-)
 
-st.markdown("---")
-
-# -----------------------------
 # 2) Thermal Comfort
 # -----------------------------
 st.header("2) Thermal Comfort")
@@ -158,6 +143,22 @@ st.markdown(
 
 task_affected = st.checkbox("Glare/brightness is affecting my task (screen/board/paper)")
 visual_notes = st.text_area("Visual notes (optional):", placeholder="e.g., glare on screen; board is hard to read…")
+
+st.markdown("---")
+
+# -----------------------------
+# 1) Feeling
+# -----------------------------
+st.header("1) Feeling")
+mood = st.selectbox(
+    "How do you feel right now?",
+    ["Happy", "Content/Neutral", "Tired", "Stressed/Anxious", "Irritated", "Other"],
+)
+mood_other = st.text_input("Please specify your feeling:") if mood == "Other" else ""
+feeling_notes = st.text_area(
+    "Tell us a bit more (optional):",
+    placeholder="e.g., I’m a bit tired after lunch; noise is distracting…",
+)
 
 st.markdown("---")
 
@@ -294,3 +295,4 @@ with a2:
             st.rerun()  # clear the form after success
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
+
