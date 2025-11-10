@@ -216,25 +216,24 @@ clothing_other  = st.text_input("Please specify:") if clothing_choice == "Other"
 clothing_val = clothing_choice if clothing_choice != "Other" else (clothing_other.strip() or None)
 st.markdown("---")
 # ----------------------------- MATRIX HELPERS -----------------------------
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
-def yes_no_matrix(title: str, questions: List[Tuple[str, str]], key_prefix: str) -> Dict[str, bool]:
-    """Render a Yes/No matrix; returns dict like {'q1_wheezing': True, ...}"""
+def yes_no_matrix(title: str, questions: List[str], key_prefix: str) -> Dict[str, bool]:
+    """Render a Yes/No matrix without code column."""
     st.header(title)
     st.caption("Modeled on the ECRHS style (tick Yes/No).")
 
-    # header row
-    h1, h2, h3 = st.columns([0.5, 4, 2])
-
-    with h2: st.markdown("**Question**")
-    with h3: st.markdown("**Response**")
+    # Header row
+    h1, h2 = st.columns([4, 2])
+    with h1: st.markdown("**Question**")
+    with h2: st.markdown("**Response**")
 
     results = {}
-    for idx, ( text) in enumerate(questions, start=1):
-         c2, c3 = st.columns([0.5, 4, 2])
-
-        with c2: st.markdown(text)
-        with c3:
+    for idx, text in enumerate(questions, start=1):
+        c1, c2 = st.columns([4, 2])
+        with c1:
+            st.markdown(text)
+        with c2:
             v = st.radio(
                 label=f"{key_prefix}_{idx}",
                 options=["Yes", "No"],
@@ -244,68 +243,31 @@ def yes_no_matrix(title: str, questions: List[Tuple[str, str]], key_prefix: str)
                 key=f"{key_prefix}_r{idx}",
             )
             results[f"{key_prefix}{idx:02d}"] = (v == "Yes")
+
     st.markdown("---")
     return results
 
 
-def likert_matrix(title: str, questions: List[Tuple[str, str]], key_prefix: str) -> Dict[str, int]:
-    """Render a 1–5 satisfaction matrix; returns dict like {'sat_overall': 4, ...}"""
-    st.header(title)
-    st.caption("Scale: 1 = very dissatisfied … 5 = very satisfied")
-
-    # header row
-    h1, h2 = st.columns([4, 2])
-    with h1: st.markdown("**Question**")
-    with h2: st.markdown("**1–5**")
-
-    results = {}
-    for key, text in questions:
-        c1, c2 = st.columns([4, 2])
-        with c1: st.markdown(text)
-        with c2:
-            score = st.slider(
-                label=f"{key_prefix}_{key}",
-                min_value=1, max_value=5, value=3,
-                label_visibility="collapsed",
-                key=f"{key_prefix}_{key}_slider",
-            )
-            results[f"{key_prefix}_{key}"] = int(score)
-    st.markdown("---")
-    return results
 # ----------------------------- 3a) SYMPTOMS: Yes / No -----------------------------
 symptom_questions = [
-    ( "Have you had wheezing or whistling in your chest today?"),
-    ("Have you felt short of breath while sitting or working indoors?"),
-    ( "Have you coughed during your time in this room?"),
-    ( "Have you had a blocked or runny nose indoors?"),
-    ( "Have you experienced itchy or watery eyes while indoors?"),
-    ( "Have you felt your throat was dry or irritated?"),
-    ( "Have you noticed any musty or damp smell?"),
-    ("Have you had a headache while in this space?"),
-    ( "Have you felt unusually warm or cold in this space?"),
-    ("Have you felt your concentration or mood was affected by the indoor environment?"),
+    "Have you had wheezing or whistling in your chest today?",
+    "Have you felt short of breath while sitting or working indoors?",
+    "Have you coughed during your time in this room?",
+    "Have you had a blocked or runny nose indoors?",
+    "Have you experienced itchy or watery eyes while indoors?",
+    "Have you felt your throat was dry or irritated?",
+    "Have you noticed any musty or damp smell?",
+    "Have you had a headache while in this space?",
+    "Have you felt unusually warm or cold in this space?",
+    "Have you felt your concentration or mood was affected by the indoor environment?",
 ]
+
 symptoms = yes_no_matrix("6) Symptoms", symptom_questions, key_prefix="symptom")
 
-# optional notes field for this block
-symptom_notes = st.text_area("Symptoms notes (optional)", placeholder="Anything to add about symptoms?")
-
-# ----------------------------- 3b) SATISFACTION: 1–5 -----------------------------
-satisfaction_questions = [
-    ("overall", "How satisfied are you with the overall indoor environment of the classroom/studio?"),
-    ("privacy", "How satisfied are you with the level of privacy during class or studio work?"),
-    ("layout", "How satisfied are you with the layout and spatial organization of the classroom/studio?"),
-    ("appearance", "How satisfied are you with the color, decoration, or visual appearance of the space?"),
-    ("airmove", "How satisfied are you with the air movement or ventilation in the space?"),
-    ("clean", "How satisfied are you with the cleanliness and hygiene of the environment?"),
-    ("view", "How satisfied are you with the outdoor view or visual connection to the outside environment?"),
-]
-satisfaction = likert_matrix("7) Satisfaction with the Space (1–5)", satisfaction_questions, key_prefix="sat")
-
-# optional notes field for satisfaction section
-satisfaction_notes = st.text_area(
-    "Satisfaction notes (optional)",
-    placeholder="Anything to add about comfort, satisfaction, or space quality?"
+# Optional notes field for this block
+symptom_notes = st.text_area(
+    "Symptoms notes (optional)",
+    placeholder="Anything to add about symptoms?"
 )
 st.markdown("---")
 # ----------------------------- 8) Optional Voice Note -----------------------------
@@ -417,6 +379,7 @@ with a2:
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
 # ------------------------- end file -------------------------
+
 
 
 
