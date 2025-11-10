@@ -302,6 +302,12 @@ satisfaction_questions = [
 ]
 satisfaction = likert_matrix("7) Satisfaction with the Space (1–5)", satisfaction_questions, key_prefix="sat")
 st.markdown("---")
+# optional notes field for satisfaction section
+satisfaction_notes = st.text_area(
+    "Satisfaction notes (optional)",
+    placeholder="Anything to add about comfort, satisfaction, or space quality?"
+)
+st.markdown("---")
 # ----------------------------- 8) Optional Voice Note -----------------------------
 # ---- Voice Note (single component, clear UX) ----
 import io, time
@@ -411,6 +417,7 @@ with a2:
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
 # ------------------------- end file -------------------------
+
 
 
 
