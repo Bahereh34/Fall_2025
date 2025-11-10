@@ -272,7 +272,36 @@ def likert_matrix(title: str, questions: List[Tuple[str, str]], key_prefix: str)
             results[f"{key_prefix}_{key}"] = int(score)
     st.markdown("---")
     return results
+# ----------------------------- 3a) SYMPTOMS: Yes / No -----------------------------
+symptom_questions = [
+    ("Q1", "Have you had wheezing or whistling in your chest today?"),
+    ("Q2", "Have you felt short of breath while sitting or working indoors?"),
+    ("Q3", "Have you coughed during your time in this room?"),
+    ("Q4", "Have you had a blocked or runny nose indoors?"),
+    ("Q5", "Have you experienced itchy or watery eyes while indoors?"),
+    ("Q6", "Have you felt your throat was dry or irritated?"),
+    ("Q7", "Have you noticed any musty or damp smell?"),
+    ("Q8", "Have you had a headache while in this space?"),
+    ("Q9", "Have you felt unusually warm or cold in this space?"),
+    ("Q10","Have you felt your concentration or mood was affected by the indoor environment?"),
+]
+symptoms = yes_no_matrix("6) Symptoms (Yes/No checklist)", symptom_questions, key_prefix="symptom")
 
+# optional notes field for this block
+symptom_notes = st.text_area("Symptoms notes (optional)", placeholder="Anything to add about symptoms?")
+
+# ----------------------------- 3b) SATISFACTION: 1–5 -----------------------------
+satisfaction_questions = [
+    ("overall", "How satisfied are you with the overall indoor environment of the classroom/studio?"),
+    ("privacy", "How satisfied are you with the level of privacy during class or studio work?"),
+    ("layout", "How satisfied are you with the layout and spatial organization of the classroom/studio?"),
+    ("appearance", "How satisfied are you with the color, decoration, or visual appearance of the space?"),
+    ("airmove", "How satisfied are you with the air movement or ventilation in the space?"),
+    ("clean", "How satisfied are you with the cleanliness and hygiene of the environment?"),
+    ("view", "How satisfied are you with the outdoor view or visual connection to the outside environment?"),
+]
+satisfaction = likert_matrix("7) Satisfaction with the Space (1–5)", satisfaction_questions, key_prefix="sat")
+st.markdown("---")
 # ----------------------------- 8) Optional Voice Note -----------------------------
 # ---- Voice Note (single component, clear UX) ----
 import io, time
@@ -382,6 +411,7 @@ with a2:
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
 # ------------------------- end file -------------------------
+
 
 
 
