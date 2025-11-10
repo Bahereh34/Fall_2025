@@ -215,6 +215,63 @@ clothing_choice = st.selectbox("Select your main clothing layer:", ["T-shirt","S
 clothing_other  = st.text_input("Please specify:") if clothing_choice == "Other" else ""
 clothing_val = clothing_choice if clothing_choice != "Other" else (clothing_other.strip() or None)
 st.markdown("---")
+# ----------------------------- MATRIX HELPERS -----------------------------
+from typing import Dict, List, Tuple
+
+def yes_no_matrix(title: str, questions: List[Tuple[str, str]], key_prefix: str) -> Dict[str, bool]:
+    """Render a Yes/No matrix; returns dict like {'q1_wheezing': True, ...}"""
+    st.header(title)
+    st.caption("Modeled on the ECRHS style (tick Yes/No).")
+
+    # header row
+    h1, h2, h3 = st.columns([0.5, 4, 2])
+    with h1: st.markdown("**Code**")
+    with h2: st.markdown("**Question**")
+    with h3: st.markdown("**Response**")
+
+    results = {}
+    for idx, (code, text) in enumerate(questions, start=1):
+        c1, c2, c3 = st.columns([0.5, 4, 2])
+        with c1: st.markdown(code)
+        with c2: st.markdown(text)
+        with c3:
+            v = st.radio(
+                label=f"{key_prefix}_{idx}",
+                options=["Yes", "No"],
+                index=1,
+                horizontal=True,
+                label_visibility="collapsed",
+                key=f"{key_prefix}_r{idx}",
+            )
+            results[f"{key_prefix}{idx:02d}"] = (v == "Yes")
+    st.markdown("---")
+    return results
+
+
+def likert_matrix(title: str, questions: List[Tuple[str, str]], key_prefix: str) -> Dict[str, int]:
+    """Render a 1–5 satisfaction matrix; returns dict like {'sat_overall': 4, ...}"""
+    st.header(title)
+    st.caption("Scale: 1 = very dissatisfied … 5 = very satisfied")
+
+    # header row
+    h1, h2 = st.columns([4, 2])
+    with h1: st.markdown("**Question**")
+    with h2: st.markdown("**1–5**")
+
+    results = {}
+    for key, text in questions:
+        c1, c2 = st.columns([4, 2])
+        with c1: st.markdown(text)
+        with c2:
+            score = st.slider(
+                label=f"{key_prefix}_{key}",
+                min_value=1, max_value=5, value=3,
+                label_visibility="collapsed",
+                key=f"{key_prefix}_{key}_slider",
+            )
+            results[f"{key_prefix}_{key}"] = int(score)
+    st.markdown("---")
+    return results
 
 # ----------------------------- 8) Optional Voice Note -----------------------------
 # ---- Voice Note (single component, clear UX) ----
@@ -325,6 +382,7 @@ with a2:
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
 # ------------------------- end file -------------------------
+
 
 
 
