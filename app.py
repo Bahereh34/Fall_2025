@@ -225,14 +225,14 @@ def yes_no_matrix(title: str, questions: List[Tuple[str, str]], key_prefix: str)
 
     # header row
     h1, h2, h3 = st.columns([0.5, 4, 2])
-    with h1: st.markdown("**Code**")
+
     with h2: st.markdown("**Question**")
     with h3: st.markdown("**Response**")
 
     results = {}
-    for idx, (code, text) in enumerate(questions, start=1):
-        c1, c2, c3 = st.columns([0.5, 4, 2])
-        with c1: st.markdown(code)
+    for idx, ( text) in enumerate(questions, start=1):
+         c2, c3 = st.columns([0.5, 4, 2])
+
         with c2: st.markdown(text)
         with c3:
             v = st.radio(
@@ -274,16 +274,16 @@ def likert_matrix(title: str, questions: List[Tuple[str, str]], key_prefix: str)
     return results
 # ----------------------------- 3a) SYMPTOMS: Yes / No -----------------------------
 symptom_questions = [
-    ("Q1", "Have you had wheezing or whistling in your chest today?"),
-    ("Q2", "Have you felt short of breath while sitting or working indoors?"),
-    ("Q3", "Have you coughed during your time in this room?"),
-    ("Q4", "Have you had a blocked or runny nose indoors?"),
-    ("Q5", "Have you experienced itchy or watery eyes while indoors?"),
-    ("Q6", "Have you felt your throat was dry or irritated?"),
-    ("Q7", "Have you noticed any musty or damp smell?"),
-    ("Q8", "Have you had a headache while in this space?"),
-    ("Q9", "Have you felt unusually warm or cold in this space?"),
-    ("Q10","Have you felt your concentration or mood was affected by the indoor environment?"),
+    ( "Have you had wheezing or whistling in your chest today?"),
+    ("Have you felt short of breath while sitting or working indoors?"),
+    ( "Have you coughed during your time in this room?"),
+    ( "Have you had a blocked or runny nose indoors?"),
+    ( "Have you experienced itchy or watery eyes while indoors?"),
+    ( "Have you felt your throat was dry or irritated?"),
+    ( "Have you noticed any musty or damp smell?"),
+    ("Have you had a headache while in this space?"),
+    ( "Have you felt unusually warm or cold in this space?"),
+    ("Have you felt your concentration or mood was affected by the indoor environment?"),
 ]
 symptoms = yes_no_matrix("6) Symptoms", symptom_questions, key_prefix="symptom")
 
@@ -417,6 +417,7 @@ with a2:
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
 # ------------------------- end file -------------------------
+
 
 
 
