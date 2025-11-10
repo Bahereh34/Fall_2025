@@ -301,7 +301,7 @@ satisfaction_questions = [
     ("view", "How satisfied are you with the outdoor view or visual connection to the outside environment?"),
 ]
 satisfaction = likert_matrix("7) Satisfaction with the Space (1–5)", satisfaction_questions, key_prefix="sat")
-st.markdown("---")
+
 # optional notes field for satisfaction section
 satisfaction_notes = st.text_area(
     "Satisfaction notes (optional)",
@@ -417,6 +417,7 @@ with a2:
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
 # ------------------------- end file -------------------------
+
 
 
 
