@@ -210,10 +210,53 @@ with mc5: metric_card("CO₂", f"{co2_ppm if co2_ppm else '—'} ppm", "ventilat
 st.markdown("---")
 
 # ----------------------------- 7) Clothing -----------------------------
-st.header("5) What are you wearing?")
-clothing_choice = st.selectbox("Select your main clothing layer:", ["T-shirt","Sweater","Jacket","Coat","Other"])
+# ----------------------------- 5) Clothing & Activity -----------------------------
+st.header("5) What are you wearing and doing?")
+
+# --- Clothing (clo proxy) ---
+st.subheader("Clothing")
+clothing_choice = st.selectbox(
+    "Select your main clothing layer:",
+    ["T-shirt", "Long-sleeve shirt", "Sweater", "Jacket", "Coat", "Other"]
+)
 clothing_other  = st.text_input("Please specify:") if clothing_choice == "Other" else ""
+jacket_on = st.checkbox("Are you currently wearing a jacket or coat?", value=False)
+
+# Store value as description and approximate clo
+clothing_dict = {
+    "T-shirt": 0.08,
+    "Long-sleeve shirt": 0.20,
+    "Sweater": 0.35,
+    "Jacket": 0.50,
+    "Coat": 0.65
+}
+clo_base = clothing_dict.get(clothing_choice, 0.25)
+if jacket_on:
+    clo_base += 0.3
 clothing_val = clothing_choice if clothing_choice != "Other" else (clothing_other.strip() or None)
+st.caption(f"Estimated clothing insulation: **{clo_base:.2f} clo**")
+
+# --- Activity (met proxy) ---
+st.subheader("Activity / Posture")
+activity = st.selectbox(
+    "Select your current activity:",
+    [
+        "Seated, relaxed (≈1.0 met)",
+        "Seated, working (≈1.2 met)",
+        "Standing, light movement (≈1.4 met)",
+        "Walking slowly (≈1.7 met)"
+    ],
+    index=1
+)
+# Convert label to numeric met
+activity_map = {
+    "Seated, relaxed (≈1.0 met)": 1.0,
+    "Seated, working (≈1.2 met)": 1.2,
+    "Standing, light movement (≈1.4 met)": 1.4,
+    "Walking slowly (≈1.7 met)": 1.7
+}
+met_value = activity_map[activity]
+st.caption(f"Estimated metabolic rate: **{met_value:.1f} met**")
 st.markdown("---")
 # ----------------------------- MATRIX HELPERS -----------------------------
 from typing import Dict, List
@@ -349,6 +392,8 @@ with a2:
             "co2_ppm": (float(co2_ppm) if co2_ppm else None),
             # clothing
             "clothing": clothing_val,
+            "clo_value": clo_base,
+            "met_value": met_value,
         }
 
         # Upload audio (private bucket)
@@ -379,6 +424,7 @@ with a2:
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
 # ------------------------- end file -------------------------
+
 
 
 
