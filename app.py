@@ -285,7 +285,7 @@ symptom_questions = [
     ("Q9", "Have you felt unusually warm or cold in this space?"),
     ("Q10","Have you felt your concentration or mood was affected by the indoor environment?"),
 ]
-symptoms = yes_no_matrix("6) Symptoms (Yes/No checklist)", symptom_questions, key_prefix="symptom")
+symptoms = yes_no_matrix("6) Symptoms", symptom_questions, key_prefix="symptom")
 
 # optional notes field for this block
 symptom_notes = st.text_area("Symptoms notes (optional)", placeholder="Anything to add about symptoms?")
@@ -411,6 +411,7 @@ with a2:
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
 # ------------------------- end file -------------------------
+
 
 
 
