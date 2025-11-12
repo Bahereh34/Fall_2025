@@ -263,17 +263,22 @@ chip({1:"#16a34a",2:"#22c55e",3:"#4ade80",4:"#a3e635",5:"#eab308",6:"#f59e0b",7:
 st.markdown("---")
 
 # ---------- 5) Clothing & Activity ----------
+# ----------------------------- 5) Clothing & Activity (visual + calculator) -----------------------------
 st.header("5) What are you wearing and doing?")
-tab_quick, tab_items = st.tabs(["Quick preset (picture selector)", "Itemized garments (table)"])
+tab_quick, tab_scale, tab_items = st.tabs([
+    "Picture selector (bands)",
+    "Continuous scale (pictures)",
+    "Itemized garments (table)"
+])
 
-# images (add files or leave blank for text-cards)
+# ---------- Shared assets ----------
 CLO_IMAGES = {
-    "<0.5 clo":   "assets/clo_0_5.png",
-    "0.6–1.2 clo":"assets/clo_0_6_1_2.png",
-    "1.3–1.7 clo":"assets/clo_1_3_1_7.png",
-    "1.8–2.4 clo":"assets/clo_1_8_2_4.png",
-    "2.5–3.4 clo":"assets/clo_2_5_3_4.png",
-    ">3.5 clo":   "assets/clo_gt_3_5.png",
+    "<0.5 clo":    "assets/clo_0_5.png",
+    "0.6–1.2 clo": "assets/clo_0_6_1_2.png",
+    "1.3–1.7 clo": "assets/clo_1_3_1_7.png",
+    "1.8–2.4 clo": "assets/clo_1_8_2_4.png",
+    "2.5–3.4 clo": "assets/clo_2_5_3_4.png",
+    ">3.5 clo":    "assets/clo_gt_3_5.png",
 }
 CLO_BANDS = [
     ("<0.5 clo",    0.45),
@@ -284,12 +289,55 @@ CLO_BANDS = [
     (">3.5 clo",    3.60),
 ]
 
+# --- Tab 1: your 6-card pictogram picker (kept) ---
 with tab_quick:
-    clo_quick = pictogram_clo_picker("Pick the outfit level that best matches the picture scale.",
-                                     images=CLO_IMAGES, bands=CLO_BANDS, state_key="clo_band_sel")
+    clo_quick = pictogram_clo_picker(
+        "Pick the outfit level that best matches the picture scale.",
+        images=CLO_IMAGES,
+        bands=CLO_BANDS,
+        state_key="clo_band_sel",
+    )
     st.caption(f"Estimated clothing insulation (quick): **{clo_quick:.2f} clo**")
 
-# ASHRAE itemized values
+# --- Tab 2: Continuous clo scale with pictograms (0.0 – 1.2+ clo) ---
+with tab_scale:
+    st.caption("Drag to match your outfit more precisely. Pictures show typical outfits at reference clo values.")
+    # reference pictures along the scale (male & female)
+    REF_PICS = {
+        0.0: ("assets/male_0.0.png",    "assets/female_0.0.png"),
+        0.3: ("assets/male_0.3.png",    "assets/female_0.3.png"),
+        0.5: ("assets/male_0.5.png",    "assets/female_0.5.png"),
+        0.7: ("assets/male_0.7.png",    "assets/female_0.7.png"),
+        0.9: ("assets/male_0.9.png",    "assets/female_0.9.png"),
+        1.1: ("assets/male_1.1.png",    "assets/female_1.1.png"),
+    }
+    # slider (allow up to ~1.4 clo for heavier indoor layers)
+    clo_cont = st.slider("Clothing insulation (clo)", 0.0, 1.4, 0.9, 0.05, help="Typical indoor: ~0.7–1.0 clo")
+
+    # gradient bar with marker
+    pct = int((clo_cont / 1.4) * 100)
+    st.markdown(
+        f"""
+        <div style="position:relative;height:18px;border-radius:12px;background:
+             linear-gradient(90deg,#f0f9ff 0%,#c7e9fb 15%,#a7d8f0 30%,#fde68a 55%,#f59e0b 80%,#ef4444 100%);
+             border:1px solid rgba(0,0,0,.08);margin:8px 2px 2px 2px;">
+            <div style="position:absolute;left:{pct}%;top:-6px;transform:translateX(-50%);">
+                <div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:8px solid #111;"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True
+    )
+    st.caption(f"Selected: **{clo_cont:.2f} clo**")
+
+    # reference pictograms row
+    cols = st.columns(len(REF_PICS))
+    for (v, (pm, pf)), col in zip(REF_PICS.items(), cols):
+        with col:
+            if os.path.exists(pm): st.image(pm, use_column_width=True)
+            if os.path.exists(pf): st.image(pf, use_column_width=True)
+            st.caption(f"{v:.1f} clo")
+
+# --- Tab 3: Itemized garments calculator (ASHRAE) ---
 CLO_ITEMS = {
     "Underwear (bra+panties/briefs)": 0.05,
     "T-shirt / singlet": 0.09,
@@ -318,15 +366,15 @@ CLO_ITEMS = {
     "Footwear: sandals": 0.02,
     "Footwear: shoes": 0.04,
     "Footwear: boots": 0.08,
-    "Tie or turtle-neck (+5%)": 0.00,  # handled as multiplier
+    "Tie or turtle-neck (+5%)": 0.00,  # multiplier handled below
 }
 
-def compute_clo(selected: List[str]) -> Tuple[float, Dict[str, float]]:
+def compute_clo(selected: list[str]) -> tuple[float, dict]:
     base, mult, details = 0.0, 1.0, {}
     for item in selected:
         if item == "Tie or turtle-neck (+5%)":
             mult = 1.05
-            details[item] = "+5%"  # type: ignore
+            details[item] = "+5%"
         else:
             v = CLO_ITEMS[item]
             base += v
@@ -334,36 +382,51 @@ def compute_clo(selected: List[str]) -> Tuple[float, Dict[str, float]]:
     return round(base * mult, 2), details
 
 with tab_items:
-    st.caption("Select what you are wearing now. The total clo is calculated from ASHRAE values.")
-    colA, colB = st.columns(2)
-    with colA:
-        base_sel = st.multiselect(
-            "Base & tops",
-            ["Underwear (bra+panties/briefs)","T-shirt / singlet","Long underwear (upper)",
-             "Shirt, short sleeve (light)","Shirt, long sleeve (light)","Shirt, long sleeve (heavy)",
-             "Blouse, light","Pullover, light","Pullover, heavy (thick sweater)","Vest, light","Vest, heavy",
-             "Tie or turtle-neck (+5%)"]
-        )
-        leg_sel = st.multiselect("Bottoms",
-            ["Long underwear (lower)","Trousers / slacks, light","Trousers / slacks, heavy","Skirt, light","Skirt, heavy"])
-    with colB:
+    st.caption("Select what you are wearing now. Total clo follows ASHRAE values.")
+    cA, cB = st.columns(2)
+    with cA:
+        top_sel = st.multiselect("Base & tops", [
+            "Underwear (bra+panties/briefs)","T-shirt / singlet","Long underwear (upper)",
+            "Shirt, short sleeve (light)","Shirt, long sleeve (light)","Shirt, long sleeve (heavy)",
+            "Blouse, light","Pullover, light","Pullover, heavy (thick sweater)",
+            "Vest, light","Vest, heavy","Tie or turtle-neck (+5%)"
+        ])
+        leg_sel = st.multiselect("Bottoms", [
+            "Long underwear (lower)","Trousers / slacks, light","Trousers / slacks, heavy",
+            "Skirt, light","Skirt, heavy"
+        ])
+    with cB:
         outer_sel = st.multiselect("Outerwear", ["Jacket, light","Jacket, heavy","Coat (indoor short coat)"])
-        feet_sel  = st.multiselect("Socks & footwear",
-            ["Socks, ankle length","Socks, knee length","Stockings / pantyhose","Footwear: sandals","Footwear: shoes","Footwear: boots"])
-    chosen_items = base_sel + leg_sel + outer_sel + feet_sel
+        feet_sel  = st.multiselect("Socks & footwear", [
+            "Socks, ankle length","Socks, knee length","Stockings / pantyhose",
+            "Footwear: sandals","Footwear: shoes","Footwear: boots"
+        ])
+    chosen_items = top_sel + leg_sel + outer_sel + feet_sel
     clo_itemized, clo_detail = compute_clo(chosen_items)
     st.caption(f"Estimated clothing insulation (itemized): **{clo_itemized:.2f} clo**")
 
-clo_value = clo_itemized if chosen_items else clo_quick
+# --- Choose final clo: itemized > continuous > band ---
+clo_from_scale = clo_cont if 'clo_cont' in locals() else 0.9
+clo_quick_fallback = clo_quick if 'clo_quick' in locals() else 0.9
+clo_value = clo_itemized if chosen_items else (clo_from_scale if clo_from_scale else clo_quick_fallback)
+
 chip("#16a34a" if clo_value < 0.7 else ("#f59e0b" if clo_value < 1.4 else "#ef4444"),
      f"CLO = {clo_value:.2f}", "🧥")
 
+# --- Activity / posture ---
 st.subheader("Activity / Posture")
-activity = st.selectbox("What are you doing right now?",
-                        ["Seated, relaxed (≈1.0 met)","Seated, working (≈1.2 met)",
-                         "Standing, light movement (≈1.4 met)","Walking slowly (≈1.7 met)"], index=1)
-met_value = {"Seated, relaxed (≈1.0 met)":1.0,"Seated, working (≈1.2 met)":1.2,
-             "Standing, light movement (≈1.4 met)":1.4,"Walking slowly (≈1.7 met)":1.7}[activity]
+activity = st.selectbox(
+    "What are you doing right now?",
+    ["Seated, relaxed (≈1.0 met)","Seated, working (≈1.2 met)",
+     "Standing, light movement (≈1.4 met)","Walking slowly (≈1.7 met)"],
+    index=1
+)
+met_value = {
+    "Seated, relaxed (≈1.0 met)": 1.0,
+    "Seated, working (≈1.2 met)": 1.2,
+    "Standing, light movement (≈1.4 met)": 1.4,
+    "Walking slowly (≈1.7 met)": 1.7
+}[activity]
 st.caption(f"Estimated metabolic rate: **{met_value:.1f} met**")
 st.markdown("---")
 
@@ -510,3 +573,4 @@ with right:
             st.error(f"❌ Failed to submit: {e}")
 
 # ---------------------------- end of file ----------------------------
+
