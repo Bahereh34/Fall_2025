@@ -1,9 +1,10 @@
-# ------------------------- app.py (clean start) -------------------------
+# ------------------------------- app.py --------------------------------
 import io
 import uuid
 import socket
 from datetime import datetime, timezone
 from urllib.parse import urlparse
+from typing import Dict, List, Tuple
 
 import streamlit as st
 from supabase import create_client, Client
@@ -12,16 +13,10 @@ from supabase import create_client, Client
 st.set_page_config(page_title="Comfort Feedback", page_icon="📝", layout="centered")
 
 # 2) Secrets -> variables (strip whitespace; remove trailing '/')
-SUPABASE_URL  = st.secrets["SUPABASE_URL"].strip().rstrip("/")
-SUPABASE_KEY  = st.secrets["SUPABASE_KEY"].strip()
+SUPABASE_URL   = st.secrets["SUPABASE_URL"].strip().rstrip("/")
+SUPABASE_KEY   = st.secrets["SUPABASE_KEY"].strip()
 SUPABASE_BUCKET = st.secrets.get("SUPABASE_BUCKET", "voice-recordings")
-FEEDBACK_TABLE = st.secrets.get("SUPABASE_TABLE", "feedback")
-SENSORS_TABLE  = st.secrets.get("SENSORS_TABLE", "sensor_readings")
-
-#--------------------------------------
-
-
-# (Use TABLE throughout the file for clarity)
+FEEDBACK_TABLE  = st.secrets.get("SUPABASE_TABLE", "feedback")
 TABLE = FEEDBACK_TABLE
 
 # 3) Create a single Supabase client (cached)
@@ -34,32 +29,19 @@ supabase = get_supabase()
 # 4) Connectivity probe (helps catch URL/key typos)
 host = urlparse(SUPABASE_URL).hostname or ""
 try:
-    resolved_ip = socket.gethostbyname(host)        # DNS resolve
-    supabase.table(TABLE).select("id").limit(1).execute()  # simple round-trip
-    #st.caption(f"✅ Supabase connected ({host} → {resolved_ip})")
+    _ = socket.gethostbyname(host)                        # DNS resolve
+    supabase.table(TABLE).select("id").limit(1).execute() # simple round-trip
 except Exception as e:
     st.error(f"❌ Supabase probe failed: {e}")
 
 # 5) Optional deps (graceful fallbacks)
 try:
-    from audiorecorder import audiorecorder  # streamlit-audiorecorder
-    HAS_AUDIOREC_B = True
-except Exception:
-    HAS_AUDIOREC_B = False
-
-try:
     from audio_recorder_streamlit import audio_recorder  # audio-recorder-streamlit
-    HAS_AUDIOREC_A = True
+    HAS_AUDIOREC = True
 except Exception:
-    HAS_AUDIOREC_A = False
+    HAS_AUDIOREC = False
 
-try:
-    import speech_recognition as sr
-    HAS_SR = True
-except Exception:
-    HAS_SR = False
-
-# ----------------------------- UI helpers -----------------------------
+# ============================= UI helpers ==============================
 def gradient_legend(colors: list[str], labels: list[str], height: int = 10):
     bar = f"linear-gradient(90deg, {', '.join(colors)})"
     ticks = "".join([f"<span>{lbl}</span>" for lbl in labels])
@@ -113,6 +95,99 @@ def metric_card(title: str, value: str, sub: str = "", icon: str = ""):
         unsafe_allow_html=True
     )
 
+def yes_no_matrix(title: str, questions: List[str], key_prefix: str) -> Dict[str, bool]:
+    """Render a Yes/No matrix without a 'Code' column."""
+    st.header(title)
+    st.caption("Modeled on the ECRHS style (tick Yes/No).")
+    h1, h2 = st.columns([4, 2])
+    with h1: st.markdown("**Question**")
+    with h2: st.markdown("**Response**")
+    out = {}
+    for idx, text in enumerate(questions, start=1):
+        c1, c2 = st.columns([4, 2])
+        with c1: st.markdown(text)
+        with c2:
+            v = st.radio(
+                label=f"{key_prefix}_{idx}",
+                options=["Yes", "No"],
+                index=1,
+                horizontal=True,
+                label_visibility="collapsed",
+                key=f"{key_prefix}_r{idx}",
+            )
+            out[f"{key_prefix}{idx:02d}"] = (v == "Yes")
+    st.markdown("---")
+    return out
+
+def likert_matrix(title: str, questions: List[Tuple[str, str]], key_prefix: str) -> Dict[str, int]:
+    """Render a 1–5 satisfaction matrix."""
+    st.header(title)
+    st.caption("Scale: 1 = very dissatisfied … 5 = very satisfied")
+    h1, h2 = st.columns([4, 2])
+    with h1: st.markdown("**Question**")
+    with h2: st.markdown("**1–5**")
+    out = {}
+    for key, text in questions:
+        c1, c2 = st.columns([4, 2])
+        with c1: st.markdown(text)
+        with c2:
+            score = st.slider(
+                label=f"{key_prefix}_{key}",
+                min_value=1, max_value=5, value=3,
+                label_visibility="collapsed",
+                key=f"{key_prefix}_{key}_slider",
+            )
+            out[f"{key_prefix}_{key}"] = int(score)
+    st.markdown("---")
+    return out
+
+def who5_matrix(title: str = "Well-Being (WHO-5)"):
+    """WHO-5 (0–5 per item), returns answers dict + raw sum + scaled score (0–100)."""
+    st.header(title)
+    st.caption("In the **last 2 weeks**, how often have you felt the following? 5=All of the time … 0=At no time")
+    # Column headers
+    hq, h5, h4, h3, h2, h1, h0 = st.columns([4,1,1,1,1,1,1])
+    with hq: st.markdown("**Question**")
+    for c, lab in zip([h5,h4,h3,h2,h1,h0],
+                      ["**5**<br/>All of the time",
+                       "**4**<br/>Most of the time",
+                       "**3**<br/>More than half",
+                       "**2**<br/>Less than half",
+                       "**1**<br/>Some of the time",
+                       "**0**<br/>At no time"]):
+        c.markdown(lab, unsafe_allow_html=True)
+
+    items = [
+        ("who1", "I have felt **cheerful and in good spirits**."),
+        ("who2", "I have felt **calm and relaxed**."),
+        ("who3", "I have felt **active and vigorous**."),
+        ("who4", "I **woke up feeling fresh** and rested."),
+        ("who5", "My **daily life** has been filled with **things that interest me**."),
+    ]
+    answers = {}
+    for key, text in items:
+        c_q, c5, c4, c3, c2, c1, c0 = st.columns([4,1,1,1,1,1,1])
+        with c_q: st.markdown(text)
+        val = st.slider(f"{key}_slider", 0, 5, 3, label_visibility="collapsed")
+        for v, col in zip([5,4,3,2,1,0],[c5,c4,c3,c2,c1,c0]):
+            col.markdown("●" if val==v else "○")
+        answers[key] = int(val)
+
+    raw_sum = sum(answers.values())    # 0–25
+    scaled = raw_sum * 4               # 0–100
+
+    st.markdown("---")
+    st.subheader("WHO-5 Score")
+    st.write(f"Raw: **{raw_sum}/25**  ·  Scaled: **{scaled}/100**")
+    tip = "✅ ≥ 50 suggests acceptable well-being."
+    if scaled < 50:
+        tip = "⚠️ < 50 suggests reduced well-being; consider follow-up."
+    if scaled < 28:
+        tip += " **< 28 is a common cut-off for possible depression screening.**"
+    st.caption(tip)
+    st.markdown("---")
+    return answers, raw_sum, scaled
+
 # ----------------------------- Title & meta -----------------------------
 st.title("📝 Classroom Comfort Feedback")
 col1, col2 = st.columns(2)
@@ -141,12 +216,12 @@ st.markdown("---")
 
 # ----------------------------- 2) Visual -----------------------------
 st.header("2) Visual Comfort")
-brightness = st.radio("Brightness level:", ["Too dim","OK","Too bright"], horizontal=True)
-glare_rating = st.slider("Glare discomfort (1=no glare, 5=severe glare)", 1, 5, 2)
+brightness     = st.radio("Brightness level:", ["Too dim","OK","Too bright"], horizontal=True)
+glare_rating   = st.slider("Glare discomfort (1=no glare, 5=severe glare)", 1, 5, 2)
 gradient_legend(["#000000 0%","#6b7280 50%","#fde047 100%"], ["Dark","OK","Too bright"])
 chip(glare_color(glare_rating), f"Glare = {glare_rating}", "👀")
-task_affected = st.checkbox("Glare/brightness is affecting my task (screen/board/paper)")
-visual_notes = st.text_area("Visual notes (optional):", placeholder="e.g., glare on screen; board is hard to read…")
+task_affected  = st.checkbox("Glare/brightness is affecting my task (screen/board/paper)")
+visual_notes   = st.text_area("Visual notes (optional):", placeholder="e.g., glare on screen; board is hard to read…")
 st.markdown("---")
 
 # ----------------------------- 3) Feeling / Concentration -----------------------------
@@ -155,12 +230,12 @@ mood = st.selectbox("How do you feel right now?", ["Happy","Content/Neutral","Ti
 mood_other = st.text_input("Please specify your feeling:") if mood == "Other" else ""
 concentration = st.slider("How focused were you during the last 10 minutes?", 0, 10, 5,
                           help="0 = Not focused at all · 10 = Extremely focused")
-productivity = st.slider("How productive do you feel right now?", 0, 10, 5,
-                         help="0 = Not productive · 10 = Extremely productive")
+productivity  = st.slider("How productive do you feel right now?", 0, 10, 5,
+                          help="0 = Not productive · 10 = Extremely productive")
 feeling_notes = st.text_area("Tell us a bit more (optional):", placeholder="e.g., Feeling distracted by temperature or lighting...")
 st.markdown("---")
 
-# ----------------------------- 4) KSS -----------------------------
+# ----------------------------- 4) Sleepiness / Fatigue (KSS) -----------------------------
 st.header("4) Sleepiness / Fatigue (KSS)")
 kss_options = [
     "1 – Extremely alert","2 – Very alert","3 – Alert","4 – Rather alert","5 – Neither alert nor sleepy",
@@ -176,70 +251,139 @@ gradient_legend(
 chip(kss_color(kss_score), f"KSS = {kss_score}", "🛌")
 st.markdown("---")
 
-# ----------------------------- 5) Optional Physiology -----------------------------
-with st.expander("🫀 Optional physiology (if wearing a device)"):
-    colp1, colp2 = st.columns(2)
-    with colp1:
-        rmssd_ms = st.number_input("HRV (RMSSD, ms)", min_value=0.0, step=1.0,
-                                   help="Enter resting RMSSD if available.")
-    with colp2:
-        skin_temp_c = st.number_input("Skin temperature (°C)", min_value=0.0, step=0.1,
-                                      help="Wrist or skin thermistor.")
-if "rmssd_ms" not in locals(): rmssd_ms = None
-if "skin_temp_c" not in locals(): skin_temp_c = None
-
-# ----------------------------- 6) Sensor snapshot -----------------------------
-with st.expander("🔎 Light & Air snapshot (optional)"):
-    coll1, coll2 = st.columns(2)
-    with coll1:
-        light_lux = st.number_input("Light level (lux)", min_value=0.0, step=1.0)
-    with coll2:
-        co2_ppm = st.number_input("CO₂ level (ppm)", min_value=0.0, step=50.0)
-if "light_lux" not in locals(): light_lux = None
-if "co2_ppm" not in locals(): co2_ppm = None
-st.markdown("---")
-
-# ----------------------------- Mini dashboard -----------------------------
-st.subheader("Now")
-mc1, mc2, mc3, mc4, mc5 = st.columns(5)
-with mc1: metric_card("KSS (sleepiness)", f"{kss_score}", "1 alert → 9 very sleepy", "🛌")
-with mc2: metric_card("HRV (RMSSD)", f"{rmssd_ms if rmssd_ms else '—'} ms", "higher often → calmer", "🫀")
-with mc3: metric_card("Skin Temp", f"{skin_temp_c if skin_temp_c else '—'} °C", "wrist/proximal", "🌡️")
-with mc4: metric_card("Light", f"{light_lux if light_lux else '—'} lux", "task plane", "💡")
-with mc5: metric_card("CO₂", f"{co2_ppm if co2_ppm else '—'} ppm", "ventilation proxy", "🫧")
-st.markdown("---")
-
-# ----------------------------- 7) Clothing -----------------------------
-# ----------------------------- 5) Clothing & Activity -----------------------------
+# ----------------------------- 5) Clothing & Activity (PMV inputs) -----------------------------
 st.header("5) What are you wearing and doing?")
 
-# --- Clothing (clo proxy) ---
-st.subheader("Clothing")
-clothing_choice = st.selectbox(
-    "Select your main clothing layer:",
-    ["T-shirt", "Long-sleeve shirt", "Sweater", "Jacket", "Coat", "Other"]
-)
-clothing_other  = st.text_input("Please specify:") if clothing_choice == "Other" else ""
-jacket_on = st.checkbox("Are you currently wearing a jacket or coat?", value=False)
-
-# Store value as description and approximate clo
-clothing_dict = {
-    "T-shirt": 0.08,
-    "Long-sleeve shirt": 0.20,
-    "Sweater": 0.35,
-    "Jacket": 0.50,
-    "Coat": 0.65
+# ---- ASHRAE-based clo values ----
+CLO_ITEMS = {
+    "Underwear (bra+panties/briefs)": 0.05,
+    "T-shirt / singlet": 0.09,
+    "Long underwear (upper)": 0.35,
+    "Long underwear (lower)": 0.35,
+    "Shirt, short sleeve (light)": 0.14,
+    "Shirt, long sleeve (light)": 0.22,
+    "Shirt, long sleeve (heavy)": 0.29,
+    "Blouse, light": 0.20,
+    "Dress, light": 0.22,
+    "Dress, heavy": 0.70,
+    "Vest, light": 0.15,
+    "Vest, heavy": 0.29,
+    "Skirt, light": 0.10,
+    "Skirt, heavy": 0.22,
+    "Trousers / slacks, light": 0.26,
+    "Trousers / slacks, heavy": 0.32,
+    "Pullover, light": 0.20,
+    "Pullover, heavy (thick sweater)": 0.37,
+    "Jacket, light": 0.22,
+    "Jacket, heavy": 0.49,
+    "Coat (indoor short coat)": 0.65,
+    "Socks, ankle length": 0.04,
+    "Socks, knee length": 0.10,
+    "Stockings / pantyhose": 0.01,
+    "Footwear: sandals": 0.02,
+    "Footwear: shoes": 0.04,
+    "Footwear: boots": 0.08,
+    "Tie or turtle-neck (+5%)": 0.00,  # handled as multiplier
 }
-clo_base = clothing_dict.get(clothing_choice, 0.25)
-if jacket_on:
-    clo_base += 0.3
-clothing_val = clothing_choice if clothing_choice != "Other" else (clothing_other.strip() or None)
-st.caption(f"Estimated clothing insulation: **{clo_base:.2f} clo**")
 
-# --- Activity (met proxy) ---
+def compute_clo(selected: list[str]) -> tuple[float, dict]:
+    base, mult, details = 0.0, 1.0, {}
+    for item in selected:
+        if item == "Tie or turtle-neck (+5%)":
+            mult = 1.05
+            details[item] = "+5%"
+        else:
+            v = CLO_ITEMS[item]
+            base += v
+            details[item] = v
+    return round(base * mult, 2), details
+
+tab_quick, tab_items = st.tabs(["Quick preset (like picture)", "Itemized garments (table)"])
+
+with tab_quick:
+    st.caption("Pick the outfit level that best matches the picture scale.")
+    band = st.radio(
+        "Outfit level",
+        [
+            "< 0.5 clo  (very light: shorts, T-shirt, sandals)",
+            "0.6 – 1.2 clo  (typical indoor: trousers + shirt, light sweater)",
+            "1.3 – 1.7 clo  (warmer outfit: sweater + jacket)",
+            "1.8 – 2.4 clo  (coat, scarf, layered)",
+            "2.5 – 3.4 clo  (heavy coat, hat, scarf)",
+            "> 3.5 clo  (very heavy, outdoor winter)",
+        ],
+        index=1,
+    )
+    band_map = {
+        "< 0.5 clo  (very light: shorts, T-shirt, sandals)": 0.45,
+        "0.6 – 1.2 clo  (typical indoor: trousers + shirt, light sweater)": 0.90,
+        "1.3 – 1.7 clo  (warmer outfit: sweater + jacket)": 1.50,
+        "1.8 – 2.4 clo  (coat, scarf, layered)": 2.00,
+        "2.5 – 3.4 clo  (heavy coat, hat, scarf)": 2.90,
+        "> 3.5 clo  (very heavy, outdoor winter)": 3.60,
+    }
+    clo_quick = band_map[band]
+    st.caption(f"Estimated clothing insulation (quick): **{clo_quick:.2f} clo**")
+
+with tab_items:
+    st.caption("Select what you are wearing now. The total clo is calculated from ASHRAE values.")
+    colA, colB = st.columns(2)
+    with colA:
+        base_sel = st.multiselect(
+            "Base & tops",
+            [
+                "Underwear (bra+panties/briefs)",
+                "T-shirt / singlet",
+                "Long underwear (upper)",
+                "Shirt, short sleeve (light)",
+                "Shirt, long sleeve (light)",
+                "Shirt, long sleeve (heavy)",
+                "Blouse, light",
+                "Pullover, light",
+                "Pullover, heavy (thick sweater)",
+                "Vest, light",
+                "Vest, heavy",
+                "Tie or turtle-neck (+5%)",
+            ],
+        )
+        leg_sel = st.multiselect(
+            "Bottoms",
+            [
+                "Long underwear (lower)",
+                "Trousers / slacks, light",
+                "Trousers / slacks, heavy",
+                "Skirt, light",
+                "Skirt, heavy",
+            ],
+        )
+    with colB:
+        outer_sel = st.multiselect(
+            "Outerwear",
+            ["Jacket, light", "Jacket, heavy", "Coat (indoor short coat)"],
+        )
+        feet_sel = st.multiselect(
+            "Socks & footwear",
+            [
+                "Socks, ankle length",
+                "Socks, knee length",
+                "Stockings / pantyhose",
+                "Footwear: sandals",
+                "Footwear: shoes",
+                "Footwear: boots",
+            ],
+        )
+
+    chosen_items = base_sel + leg_sel + outer_sel + feet_sel
+    clo_itemized, clo_detail = compute_clo(chosen_items)
+    st.caption(f"Estimated clothing insulation (itemized): **{clo_itemized:.2f} clo**")
+
+clo_value = clo_itemized if chosen_items else clo_quick
+chip_color = "#16a34a" if clo_value < 0.7 else ("#f59e0b" if clo_value < 1.4 else "#ef4444")
+chip(chip_color, f"CLO = {clo_value:.2f}", "🧥")
+
 st.subheader("Activity / Posture")
 activity = st.selectbox(
-    "Select your current activity:",
+    "What are you doing right now?",
     [
         "Seated, relaxed (≈1.0 met)",
         "Seated, working (≈1.2 met)",
@@ -248,7 +392,6 @@ activity = st.selectbox(
     ],
     index=1
 )
-# Convert label to numeric met
 activity_map = {
     "Seated, relaxed (≈1.0 met)": 1.0,
     "Seated, working (≈1.2 met)": 1.2,
@@ -258,40 +401,8 @@ activity_map = {
 met_value = activity_map[activity]
 st.caption(f"Estimated metabolic rate: **{met_value:.1f} met**")
 st.markdown("---")
-# ----------------------------- MATRIX HELPERS -----------------------------
-from typing import Dict, List
 
-def yes_no_matrix(title: str, questions: List[str], key_prefix: str) -> Dict[str, bool]:
-    """Render a Yes/No matrix without code column."""
-    st.header(title)
-    st.caption("Modeled on the ECRHS style (tick Yes/No).")
-
-    # Header row
-    h1, h2 = st.columns([4, 2])
-    with h1: st.markdown("**Question**")
-    with h2: st.markdown("**Response**")
-
-    results = {}
-    for idx, text in enumerate(questions, start=1):
-        c1, c2 = st.columns([4, 2])
-        with c1:
-            st.markdown(text)
-        with c2:
-            v = st.radio(
-                label=f"{key_prefix}_{idx}",
-                options=["Yes", "No"],
-                index=1,
-                horizontal=True,
-                label_visibility="collapsed",
-                key=f"{key_prefix}_r{idx}",
-            )
-            results[f"{key_prefix}{idx:02d}"] = (v == "Yes")
-
-    st.markdown("---")
-    return results
-
-
-# ----------------------------- 3a) SYMPTOMS: Yes / No -----------------------------
+# ----------------------------- 6) Symptoms (Yes/No) -----------------------------
 symptom_questions = [
     "Have you had wheezing or whistling in your chest today?",
     "Have you felt short of breath while sitting or working indoors?",
@@ -304,48 +415,53 @@ symptom_questions = [
     "Have you felt unusually warm or cold in this space?",
     "Have you felt your concentration or mood was affected by the indoor environment?",
 ]
-
 symptoms = yes_no_matrix("6) Symptoms", symptom_questions, key_prefix="symptom")
-
-# Optional notes field for this block
-symptom_notes = st.text_area(
-    "Symptoms notes (optional)",
-    placeholder="Anything to add about symptoms?"
-)
+symptom_notes = st.text_area("Symptoms notes (optional)", placeholder="Anything to add about symptoms?")
 st.markdown("---")
-# ----------------------------- 8) Optional Voice Note -----------------------------
-# ---- Voice Note (single component, clear UX) ----
-import io, time
 
-st.header("6) Optional Voice Note")
+# ----------------------------- 7) Satisfaction (1–5) -----------------------------
+satisfaction_questions = [
+    ("overall",   "How satisfied are you with the overall indoor environment of the classroom/studio?"),
+    ("privacy",   "How satisfied are you with the level of privacy during class or studio work?"),
+    ("layout",    "How satisfied are you with the layout and spatial organization of the classroom/studio?"),
+    ("appearance","How satisfied are you with the color, decoration, or visual appearance of the space?"),
+    ("airmove",   "How satisfied are you with the air movement or ventilation in the space?"),
+    ("clean",     "How satisfied are you with the cleanliness and hygiene of the environment?"),
+    ("view",      "How satisfied are you with the outdoor view or visual connection to the outside environment?"),
+]
+satisfaction = likert_matrix("7) Satisfaction with the Space (1–5)", satisfaction_questions, key_prefix="sat")
+satisfaction_notes = st.text_area("Satisfaction notes (optional)", placeholder="Anything to add about comfort, satisfaction, or space quality?")
+st.markdown("---")
+
+# ----------------------------- 8) WHO-5 Well-Being -----------------------------
+who_answers, who_raw, who_scaled = who5_matrix()
+
+# ----------------------------- Mini dashboard -----------------------------
+st.subheader("Now")
+mc1, mc2, mc3, mc4, mc5 = st.columns(5)
+with mc1: metric_card("KSS (sleepiness)", f"{kss_score}", "1 alert → 9 very sleepy", "🛌")
+with mc2: metric_card("CLO", f"{clo_value:.2f}", "clothing insulation", "🧥")
+with mc3: metric_card("Activity", f"{met_value:.1f} met", "metabolic rate", "🏃")
+with mc4: metric_card("WHO-5", f"{who_scaled}", "0–100, ≥50 good", "🙂")
+with mc5: metric_card("Room", room or "—", "location tag", "📍")
+st.markdown("---")
+
+# ----------------------------- 9) Optional Voice Note -----------------------------
+st.header("9) Optional Voice Note")
 st.caption("Click once to start, click again to stop (≤15 s). If mic is blocked, allow it in the browser’s site settings.")
-
 audio_bytes = None
 audio_mime = "audio/wav"
-audio_seconds = None          # <-- add this line
+audio_seconds = None
 voice_transcript = None
 
-try:
-    from audio_recorder_streamlit import audio_recorder  # package: audio-recorder-streamlit
-
-    # Show recorder
-    st.write("**Recorder:**")
-    raw = audio_recorder(
-        text="Click to record / stop",
-        recording_color="#ef4444",
-        neutral_color="#e5e7eb",
-        icon_size="2x",
-        key="voice_recorder_a",
-    )
-
-    # Note: this component returns bytes **only after you stop** (click again).
-    # You don't press-and-hold; it's click-to-toggle.
+if HAS_AUDIOREC:
+    raw = audio_recorder(text="Click to record / stop", recording_color="#ef4444",
+                         neutral_color="#e5e7eb", icon_size="2x", key="voice_recorder_a")
     if raw:
         audio_bytes = raw
         st.audio(io.BytesIO(audio_bytes), format=audio_mime)
-        st.success("Recorded! (If you need, click Reset form above before submitting.)")
-
-except Exception as e:
+        st.success("Recorded! (If needed, click Reset form above before submitting.)")
+else:
     st.info("Microphone recorder unavailable on this device. You can upload a short audio file instead.")
     upload = st.file_uploader("Upload voice note (≤15s; wav/mp3/m4a)", type=["wav", "mp3", "m4a"])
     if upload is not None:
@@ -353,7 +469,6 @@ except Exception as e:
         audio_mime = upload.type or "audio/wav"
         st.audio(io.BytesIO(audio_bytes), format=audio_mime)
 
-# Optional manual summary
 voice_note_text = st.text_input("Short summary (optional)", placeholder="e.g., tired; cold draft near window; glare on projector")
 
 # ----------------------------- Submit / Reset -----------------------------
@@ -369,32 +484,42 @@ with a2:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "room": (room or None),
             "user_id": (user_id or None),
-            # thermal
+
+            # Thermal / Visual / Feeling
             "thermal_sensation": thermal_sensation,
             "thermal_preference": thermal_preference,
             "air_movement": air_movement,
             "thermal_notes": (thermal_notes.strip() or None),
-            # visual
             "brightness": brightness,
             "glare_rating": glare_rating,
             "task_affected": task_affected,
             "visual_notes": (visual_notes.strip() or None),
-            # feeling
             "mood": (mood if mood != "Other" else (mood_other.strip() or None)),
             "concentration": concentration,
             "productivity": productivity,
             "feeling_notes": (feeling_notes.strip() or None),
-            # KSS / physiology / sensors
+
+            # KSS
             "kss_score": kss_score,
-            "rmssd_ms": (float(rmssd_ms) if rmssd_ms else None),
-            "skin_temp_c": (float(skin_temp_c) if skin_temp_c else None),
-            "light_lux": (float(light_lux) if light_lux else None),
-            "co2_ppm": (float(co2_ppm) if co2_ppm else None),
-            # clothing
-            "clothing": clothing_val,
-            "clo_value": clo_base,
+
+            # Clothing & Activity
+            "clo_value": clo_value,
+            "clothing_detail": (chosen_items if chosen_items else [band]),
+            "clothing_detail_map": (clo_detail if chosen_items else {}),
             "met_value": met_value,
+
+            # Symptoms / Satisfaction
+            "symptom_notes": (symptom_notes.strip() or None),
+            "satisfaction_notes": (satisfaction_notes.strip() or None),
+
+            # WHO-5
+            "who5_raw_sum": who_raw,
+            "who5_scaled_0_100": who_scaled,
         }
+
+        # Merge matrix answers
+        payload.update(symptoms)      # symptom01..10 -> bool
+        payload.update(satisfaction)  # sat_overall, sat_privacy, ...
 
         # Upload audio (private bucket)
         audio_path = None
@@ -423,17 +548,5 @@ with a2:
             st.rerun()
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
-# ------------------------- end file -------------------------
 
-
-
-
-
-
-
-
-
-
-
-
-
+# ---------------------------- end of file -----------------------------
