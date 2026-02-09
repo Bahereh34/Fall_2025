@@ -207,7 +207,7 @@ def pictogram_clo_picker(title: str,
     return float(band_to_value[selected_key])
 
 # ---------- Title ----------
-st.title("📝 Classroom Comfort Feedback")
+st.title("📝 Indoor Comfort Feedback Portal")
 c1, c2 = st.columns(2)
 with c1: room   = st.text_input("Room/Location (optional)")
 with c2: user_id = st.text_input("User ID (optional)")
@@ -573,4 +573,5 @@ with right:
             st.error(f"❌ Failed to submit: {e}")
 
 # ---------------------------- end of file ----------------------------
+
 
