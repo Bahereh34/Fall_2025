@@ -3,7 +3,7 @@ import os, io, uuid, socket
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from typing import Dict, List, Tuple
-
+from pathlib import Path
 import streamlit as st
 from PIL import Image
 from supabase import create_client, Client
@@ -16,6 +16,33 @@ SUPABASE_KEY   = st.secrets["SUPABASE_KEY"].strip()
 SUPABASE_BUCKET = st.secrets.get("SUPABASE_BUCKET", "voice-recordings")
 FEEDBACK_TABLE  = st.secrets.get("SUPABASE_TABLE", "feedback")
 TABLE = FEEDBACK_TABLE
+BASE_DIR = Path(__file__).resolve().parent
+
+CLO_IMAGES = {
+    "<0.5 clo": str(BASE_DIR / "assets" / "clo_images" / "1.jpg"),
+    "0.6–1.2 clo": str(BASE_DIR / "assets" / "clo_images" / "2.jpg"),
+    "1.3–1.7 clo": str(BASE_DIR / "assets" / "clo_images" / "3.jpg"),
+    "1.8–2.4 clo": str(BASE_DIR / "assets" / "clo_images" / "4.jpg"),
+    "2.5–3.4 clo": str(BASE_DIR / "assets" / "clo_images" / "5.jpg"),
+    ">3.5 clo": str(BASE_DIR / "assets" / "clo_images" / "6.jpg"),
+}
+CLO_BANDS = [
+    ("<0.5 clo", 0.45),
+    ("0.6–1.2 clo", 0.90),
+    ("1.3–1.7 clo", 1.50),
+    ("1.8–2.4 clo", 2.10),
+    ("2.5–3.4 clo", 2.95),
+    (">3.5 clo", 3.50),
+]
+
+clo_value = pictogram_clo_picker(
+    title="Clothing Level (CLO)",
+    images=CLO_IMAGES,
+    bands=CLO_BANDS,
+    state_key="clo_band_sel"
+)
+
+st.write(f"Estimated clothing insulation (quick): **{clo_value:.2f} clo**")
 
 @st.cache_resource
 def get_supabase() -> Client:
@@ -573,5 +600,6 @@ with right:
             st.error(f"❌ Failed to submit: {e}")
 
 # ---------------------------- end of file ----------------------------
+
 
 
