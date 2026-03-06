@@ -239,7 +239,7 @@ def pictogram_clo_picker(
             path = images.get(band_key, "")
             if path and os.path.exists(path):
                 try:
-                    st.image(Image.open(path), use_container_width=True)
+                    st.image(Image.open(path), use_column_width=True)
                 except Exception:
                     st.markdown(
                         "<div style='height:140px;border:1px solid #eee;border-radius:12px;display:flex;align-items:center;justify-content:center;'>"
@@ -448,7 +448,7 @@ with tab_scale:
         with col:
             path = CLO_IMAGES.get(band_key, "")
             if path and os.path.exists(path):
-                st.image(path, use_container_width=True)
+                st.image(path, use_column_width=True)
             st.caption(f"{band_val:.2f} clo")
 
 with tab_items:
@@ -712,3 +712,4 @@ with right:
             st.error(f"❌ Failed to submit: {e}")
 
 # ---------------------------- end of file ----------------------------
+
