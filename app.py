@@ -314,11 +314,12 @@ def compute_clo(selected: List[str]) -> Tuple[float, Dict[str, object]]:
 
 # ---------- Title ----------
 st.title("📝 Indoor Comfort Feedback Portal")
+
 # ---------- Seat / Grid Location ----------
 st.header("Seat / Grid Location")
 st.caption("Please select the number that matches where you are sitting.")
 
-GRID_IMAGE = str(BASE_DIR / "assets" / "grid_map" / "grid_numbered_plan.png")
+GRID_IMAGE = str(BASE_DIR / "assets" / "clo_images" / "grid_numbered_plan.png")
 
 if os.path.exists(GRID_IMAGE):
     st.image(Image.open(GRID_IMAGE), caption="Numbered seating/grid map", use_column_width=True)
@@ -326,10 +327,11 @@ if os.path.exists(GRID_IMAGE):
 grid_number = st.number_input(
     "Your seat/grid number",
     min_value=1,
-    max_value=120,   # change this to your real max number
+    max_value=120,
     value=1,
     step=1
 )
+
 c1, c2 = st.columns(2)
 with c1:
     room = st.text_input("Room/Location (optional)")
@@ -728,5 +730,6 @@ with right:
             st.error(f"❌ Failed to submit: {e}")
 
 # ---------------------------- end of file ----------------------------
+
 
 
