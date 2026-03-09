@@ -695,10 +695,14 @@ if HAS_AUDIOREC:
         icon_size="2x",
         key="voice_recorder_a",
     )
-    if raw:
+
+    if raw is not None:
         audio_bytes = raw
+        st.write(f"Debug: recorded {len(audio_bytes)} bytes")
         st.audio(io.BytesIO(audio_bytes), format=audio_mime)
         st.success("Recorded! Use Reset if you need to start over.")
+    else:
+        st.caption("No audio captured yet.")
 else:
     st.info("Recorder unavailable; you can upload a short audio file instead.")
     upload = st.file_uploader("Upload voice note (≤15s; wav/mp3/m4a)", type=["wav", "mp3", "m4a"])
@@ -778,14 +782,21 @@ with right:
         if audio_bytes:
             try:
                 fname = f"voice/{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex}.wav"
-                supabase.storage.from_(SUPABASE_BUCKET).upload(
+
+                result = supabase.storage.from_(SUPABASE_BUCKET).upload(
                     path=fname,
                     file=audio_bytes,
                     file_options={"content-type": audio_mime, "x-upsert": "true"},
                 )
+
+                st.write("Upload result:", result)
                 audio_path = fname
+                st.success(f"Audio uploaded to: {audio_path}")
+
             except Exception as e:
                 st.error(f"⚠️ Audio upload failed: {e}")
+        else:
+            st.warning("No audio bytes found, so nothing was uploaded.")
 
         payload.update(
             {
@@ -805,6 +816,7 @@ with right:
             st.error(f"❌ Failed to submit: {e}")
 
 # ---------------------------- end of file ----------------------------
+
 
 
 
