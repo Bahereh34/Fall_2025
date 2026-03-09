@@ -316,7 +316,7 @@ def compute_clo(selected: List[str]) -> Tuple[float, Dict[str, object]]:
 st.title("📝 Indoor Comfort Feedback Portal")
 
 # ---------- Seat / Grid Location ----------
-st.header("Seat / Grid Location")
+st.header("Grid Location")
 st.caption("Please select the number that matches where you are sitting.")
 
 GRID_IMAGE = str(BASE_DIR / "assets" / "clo_images" / "grid_numbered_plan.png")
@@ -818,6 +818,7 @@ with right:
             st.error(f"❌ Failed to submit: {e}")
 
 # ---------------------------- end of file ----------------------------
+
 
 
 
