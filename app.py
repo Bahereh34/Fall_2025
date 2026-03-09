@@ -413,8 +413,73 @@ chip(
 )
 st.markdown("---")
 
+
+# ---------- Smartwatch (Optional) ----------
+st.header("5) Smartwatch Data (Optional)")
+st.caption("If you are wearing a smartwatch, you may enter the values shown on your device.")
+
+uses_smartwatch = st.checkbox("I am wearing a smartwatch / fitness tracker")
+
+watch_brand = None
+heart_rate = None
+hrv_ms = None
+stress_level = None
+wrist_temp_delta = None
+sleep_hours = None
+
+if uses_smartwatch:
+    watch_brand = st.selectbox(
+        "Watch / tracker brand",
+        ["Apple Watch", "Garmin", "Fitbit", "Samsung Galaxy Watch", "Oura", "Other"],
+    )
+
+    heart_rate = st.number_input(
+        "Current heart rate (bpm)",
+        min_value=30,
+        max_value=220,
+        value=75,
+        step=1,
+        help="Enter the heart rate currently shown on your watch.",
+    )
+
+    hrv_ms = st.number_input(
+        "Heart Rate Variability (HRV, ms) if available",
+        min_value=0.0,
+        max_value=300.0,
+        value=50.0,
+        step=1.0,
+        help="If your watch does not show HRV, leave it at 0 or skip this section.",
+    )
+
+    stress_level = st.slider(
+        "Stress level from watch (if available)",
+        min_value=0,
+        max_value=100,
+        value=25,
+        help="For devices like Garmin or Fitbit that estimate stress.",
+    )
+
+    wrist_temp_delta = st.number_input(
+        "Wrist temperature change (°C) if available",
+        min_value=-5.0,
+        max_value=5.0,
+        value=0.0,
+        step=0.1,
+        help="Use temperature change from baseline if your device reports it.",
+    )
+
+    sleep_hours = st.slider(
+        "How many hours did you sleep last night?",
+        min_value=0.0,
+        max_value=12.0,
+        value=7.0,
+        step=0.5,
+    )
+
+st.markdown("---")
+
 # ---------- 5) Clothing & Activity ----------
-st.header("5) What are you wearing and doing?")
+st.header("6) What are you wearing and doing?")
 tab_quick, tab_scale, tab_items = st.tabs(
     ["Picture selector (bands)", "Continuous scale", "Itemized garments (table)"]
 )
@@ -680,6 +745,15 @@ with right:
             # KSS
             "kss_score": kss_score,
 
+            # smartwatch
+            "uses_smartwatch": uses_smartwatch,
+            "watch_brand": watch_brand if uses_smartwatch else None,
+            "heart_rate": heart_rate if uses_smartwatch else None,
+            "hrv_ms": hrv_ms if uses_smartwatch and hrv_ms and hrv_ms > 0 else None,
+            "stress_level": stress_level if uses_smartwatch else None,
+            "wrist_temp_delta": wrist_temp_delta if uses_smartwatch else None,
+            "sleep_hours": sleep_hours if uses_smartwatch else None,
+
             # clothing & activity
             "clo_value": clo_value,
             "clothing_detail": chosen_items if chosen_items else [st.session_state.get("clo_band_sel", "")],
@@ -730,6 +804,7 @@ with right:
             st.error(f"❌ Failed to submit: {e}")
 
 # ---------------------------- end of file ----------------------------
+
 
 
 
