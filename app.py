@@ -22,6 +22,14 @@ FEEDBACK_TABLE = st.secrets.get("SUPABASE_TABLE", "feedback")
 TABLE = FEEDBACK_TABLE
 
 BASE_DIR = Path(__file__).resolve().parent
+# ---------- Load custom CSS ----------
+def load_css():
+    css_path = BASE_DIR / "style.css"
+    if css_path.exists():
+        with open(css_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+load_css()
 
 # ---------- CLO assets ----------
 CLO_IMAGES = {
@@ -313,8 +321,15 @@ def compute_clo(selected: List[str]) -> Tuple[float, Dict[str, object]]:
     return round(base * mult, 2), details
 
 # ---------- Title ----------
-st.title("📝 Indoor Comfort Feedback Portal")
-
+st.markdown("""
+<div class="app-title">📝 Indoor Comfort Feedback Portal</div>
+<div class="app-subtitle">
+Share your thermal, visual, and well-being experience in this space.
+</div>
+""", unsafe_allow_html=True)
+st.markdown('<div class="section-card">', unsafe_allow_html=True)
+st.markdown('<div class="section-heading">Seat / Grid Location</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-caption">Please select the number that matches where you are sitting.</div>', unsafe_allow_html=True)
 # ---------- Seat / Grid Location ----------
 st.header("Grid Location")
 st.caption("Please select the number that matches where you are sitting.")
@@ -339,7 +354,7 @@ with c2:
     user_id = st.text_input("User ID (optional)")
 
 st.markdown("---")
-
+st.markdown('</div>', unsafe_allow_html=True)
 # ---------- 1) Thermal ----------
 st.header("1) Thermal Comfort")
 thermal_sensation = st.slider(
@@ -818,6 +833,7 @@ with right:
             st.error(f"❌ Failed to submit: {e}")
 
 # ---------------------------- end of file ----------------------------
+
 
 
 
