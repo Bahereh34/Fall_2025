@@ -678,9 +678,9 @@ with mc5:
 
 st.markdown("---")
 
-# ---------- 9) Voice note ----------
+# ---------- 9) Optional Voice Note ----------
 st.header("9) Optional Voice Note")
-st.caption("Click once to start, click again to stop (≤15 s). If blocked, allow mic in browser site settings.")
+st.caption("You can either record directly or upload a short audio file.")
 
 audio_bytes = None
 audio_mime = "audio/wav"
@@ -688,6 +688,7 @@ audio_seconds = None
 voice_transcript = None
 
 if HAS_AUDIOREC:
+    st.subheader("Record directly")
     raw = audio_recorder(
         text="Click to record / stop",
         recording_color="#ef4444",
@@ -698,18 +699,19 @@ if HAS_AUDIOREC:
 
     if raw is not None:
         audio_bytes = raw
-        st.write(f"Debug: recorded {len(audio_bytes)} bytes")
+        st.success(f"Recorded successfully: {len(audio_bytes)} bytes")
         st.audio(io.BytesIO(audio_bytes), format=audio_mime)
-        st.success("Recorded! Use Reset if you need to start over.")
     else:
-        st.caption("No audio captured yet.")
-else:
-    st.info("Recorder unavailable; you can upload a short audio file instead.")
-    upload = st.file_uploader("Upload voice note (≤15s; wav/mp3/m4a)", type=["wav", "mp3", "m4a"])
-    if upload is not None:
-        audio_bytes = upload.read()
-        audio_mime = upload.type or "audio/wav"
-        st.audio(io.BytesIO(audio_bytes), format=audio_mime)
+        st.caption("No live recording captured yet.")
+
+st.subheader("Or upload an audio file")
+upload = st.file_uploader("Upload voice note (wav/mp3/m4a)", type=["wav", "mp3", "m4a"])
+
+if upload is not None:
+    audio_bytes = upload.read()
+    audio_mime = upload.type or "audio/wav"
+    st.success(f"Uploaded file: {len(audio_bytes)} bytes")
+    st.audio(io.BytesIO(audio_bytes), format=audio_mime)
 
 voice_note_text = st.text_input(
     "Short summary (optional)",
@@ -816,6 +818,7 @@ with right:
             st.error(f"❌ Failed to submit: {e}")
 
 # ---------------------------- end of file ----------------------------
+
 
 
 
