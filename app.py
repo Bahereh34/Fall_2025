@@ -771,6 +771,7 @@ with right:
 
         payload.update(symptoms)
         payload.update(satisfaction)
+        payload.update(who_answers)
 
         # audio upload
         audio_path = None
@@ -804,6 +805,7 @@ with right:
             st.error(f"❌ Failed to submit: {e}")
 
 # ---------------------------- end of file ----------------------------
+
 
 
 
