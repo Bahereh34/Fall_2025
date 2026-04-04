@@ -481,14 +481,8 @@ st.markdown("---")
 # ---------- Contextual Factors ----------
 st.header("3) Contextual Factors")
 
-# 1. Location (you already have it — just keep it consistent)
-st.subheader("1. Location")
-st.caption("Your selected seat/grid number will be used for spatial analysis.")
-
-# (You already defined grid_number above — do NOT repeat input here)
-
-# 2. Time (duration in space)
-st.subheader("2. Time in this space")
+# 1. Time
+st.subheader("1. Time in this space")
 time_in_space = st.radio(
     "How long have you been in this space?",
     [
@@ -500,19 +494,77 @@ time_in_space = st.radio(
     horizontal=True,
 )
 
-# 3. Clothing (simplified quick version)
-st.subheader("3. Clothing level")
-clothing_level = st.radio(
-    "How would you describe your clothing?",
-    ["Light", "Medium", "Heavy"],
-    horizontal=True,
+# 2. Clothing (FULL CLO SECTION HERE)
+st.subheader("2. Clothing (Thermal context)")
+st.caption("Select your clothing level. You can use a quick estimate or a detailed selection.")
+
+tab_quick, tab_scale, tab_items = st.tabs(
+    ["Quick selection", "Continuous scale", "Detailed garments"]
 )
 
-st.caption("This is a quick estimate. A detailed option is available below.")
+clo_quick = 0.9
+clo_cont = 0.9
+clo_itemized = None
+clo_detail = {}
+chosen_items = []
 
-# 4. Activity (IMPORTANT: refine this)
-st.subheader("4. Activity")
+# --- Quick (mapped to CLO) ---
+with tab_quick:
+    clothing_level = st.radio(
+        "How would you describe your clothing?",
+        ["Light", "Medium", "Heavy"],
+        horizontal=True,
+    )
 
+    clothing_map = {
+        "Light": 0.5,
+        "Medium": 0.9,
+        "Heavy": 1.3,
+    }
+
+    clo_quick = clothing_map[clothing_level]
+    st.caption(f"Estimated: **{clo_quick:.2f} clo**")
+
+# --- Continuous ---
+with tab_scale:
+    clo_cont = st.slider(
+        "Clothing insulation (clo)",
+        min_value=0.0,
+        max_value=3.6,
+        value=0.9,
+        step=0.05,
+    )
+    st.caption(f"Selected: **{clo_cont:.2f} clo**")
+
+# --- Detailed ---
+with tab_items:
+    st.caption("Select what you are wearing.")
+
+    chosen_items = st.multiselect(
+        "Garments",
+        list(CLO_ITEMS.keys())
+    )
+
+    if chosen_items:
+        clo_itemized, clo_detail = compute_clo(chosen_items)
+        st.caption(f"Estimated: **{clo_itemized:.2f} clo**")
+
+# --- Final CLO selection logic ---
+if clo_itemized is not None:
+    clo_value = clo_itemized
+elif clo_cont is not None:
+    clo_value = clo_cont
+else:
+    clo_value = clo_quick
+
+chip(
+    "#16a34a" if clo_value < 0.7 else ("#f59e0b" if clo_value < 1.4 else "#ef4444"),
+    f"CLO = {clo_value:.2f}",
+    "🧥",
+)
+
+# 3. Activity
+st.subheader("3. Activity")
 activity_type = st.selectbox(
     "What are you mainly doing right now?",
     [
@@ -529,8 +581,6 @@ if activity_type == "Other":
     activity_other = st.text_input("Please specify activity")
 
 st.markdown("---")
-
-
 # ---------- 3) Feeling ----------
 st.header("3) Feeling / Concentration")
 mood = st.selectbox("How do you feel right now?", ["Happy", "Content/Neutral", "Tired", "Stressed/Anxious", "Irritated", "Other"])
@@ -632,152 +682,7 @@ if uses_smartwatch:
 
 st.markdown("---")
 
-# ---------- 5) Clothing & Activity ----------
-st.header("6) What are you wearing and doing?")
-tab_quick, tab_scale, tab_items = st.tabs(
-    ["Picture selector (bands)", "Continuous scale", "Itemized garments (table)"]
-)
 
-clo_quick = 0.90
-clo_cont = 0.90
-chosen_items = []
-clo_detail = {}
-clo_itemized = None
-
-with tab_quick:
-    clo_quick = pictogram_clo_picker(
-        "Clothing Level (CLO)",
-        images=CLO_IMAGES,
-        bands=CLO_BANDS,
-        state_key="clo_band_sel",
-    )
-    st.caption(f"Estimated clothing insulation (quick): **{clo_quick:.2f} clo**")
-
-with tab_scale:
-    st.caption("Drag to match your outfit more precisely.")
-    clo_cont = st.slider(
-        "Clothing insulation (clo)",
-        min_value=0.0,
-        max_value=3.6,
-        value=0.9,
-        step=0.05,
-        help="Typical indoor clothing is often around 0.7–1.0 clo.",
-    )
-
-    pct = int((clo_cont / 3.6) * 100)
-    st.markdown(
-        f"""
-        <div style="position:relative;height:18px;border-radius:12px;background:
-             linear-gradient(90deg,#f0f9ff 0%,#c7e9fb 20%,#a7d8f0 40%,#fde68a 65%,#f59e0b 82%,#ef4444 100%);
-             border:1px solid rgba(0,0,0,.08);margin:8px 2px 2px 2px;">
-            <div style="position:absolute;left:{pct}%;top:-6px;transform:translateX(-50%);">
-                <div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:8px solid #111;"></div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.caption(f"Selected: **{clo_cont:.2f} clo**")
-
-    cols = st.columns(6)
-    for (band_key, band_val), col in zip(CLO_BANDS, cols):
-        with col:
-            path = CLO_IMAGES.get(band_key, "")
-            if path and os.path.exists(path):
-                st.image(path, use_column_width=True)
-            st.caption(f"{band_val:.2f} clo")
-
-with tab_items:
-    st.caption("Select what you are wearing now. Total clo follows ASHRAE-style item values.")
-
-    cA, cB = st.columns(2)
-
-    with cA:
-        top_sel = st.multiselect(
-            "Base & tops",
-            [
-                "Underwear (bra+panties/briefs)",
-                "T-shirt / singlet",
-                "Long underwear (upper)",
-                "Shirt, short sleeve (light)",
-                "Shirt, long sleeve (light)",
-                "Shirt, long sleeve (heavy)",
-                "Blouse, light",
-                "Pullover, light",
-                "Pullover, heavy (thick sweater)",
-                "Vest, light",
-                "Vest, heavy",
-                "Tie or turtle-neck (+5%)",
-            ],
-        )
-        leg_sel = st.multiselect(
-            "Bottoms",
-            [
-                "Long underwear (lower)",
-                "Trousers / slacks, light",
-                "Trousers / slacks, heavy",
-                "Skirt, light",
-                "Skirt, heavy",
-            ],
-        )
-
-    with cB:
-        outer_sel = st.multiselect("Outerwear", ["Jacket, light", "Jacket, heavy", "Coat (indoor short coat)"])
-        feet_sel = st.multiselect(
-            "Socks & footwear",
-            [
-                "Socks, ankle length",
-                "Socks, knee length",
-                "Stockings / pantyhose",
-                "Footwear: sandals",
-                "Footwear: shoes",
-                "Footwear: boots",
-            ],
-        )
-
-    chosen_items = top_sel + leg_sel + outer_sel + feet_sel
-    if chosen_items:
-        clo_itemized, clo_detail = compute_clo(chosen_items)
-        st.caption(f"Estimated clothing insulation (itemized): **{clo_itemized:.2f} clo**")
-    else:
-        st.caption("No garments selected yet.")
-
-# final clo selection priority
-if clo_itemized is not None:
-    clo_value = clo_itemized
-elif clo_cont is not None:
-    clo_value = clo_cont
-else:
-    clo_value = clo_quick
-
-chip(
-    "#16a34a" if clo_value < 0.7 else ("#f59e0b" if clo_value < 1.4 else "#ef4444"),
-    f"CLO = {clo_value:.2f}",
-    "🧥",
-)
-
-# --- Activity / posture ---
-st.subheader("Activity / Posture")
-activity = st.selectbox(
-    "What are you doing right now?",
-    [
-        "Seated, relaxed (≈1.0 met)",
-        "Seated, working (≈1.2 met)",
-        "Standing, light movement (≈1.4 met)",
-        "Walking slowly (≈1.7 met)",
-    ],
-    index=1,
-)
-
-met_value = {
-    "Seated, relaxed (≈1.0 met)": 1.0,
-    "Seated, working (≈1.2 met)": 1.2,
-    "Standing, light movement (≈1.4 met)": 1.4,
-    "Walking slowly (≈1.7 met)": 1.7,
-}[activity]
-
-st.caption(f"Estimated metabolic rate: **{met_value:.1f} met**")
-st.markdown("---")
 
 # ---------- 6) Symptoms ----------
 symptom_questions = [
@@ -932,10 +837,13 @@ with right:
             "sleep_hours": sleep_hours if uses_smartwatch else None,
 
             # clothing & activity
+
+
             "clo_value": clo_value,
-            "clothing_detail": chosen_items if chosen_items else [st.session_state.get("clo_band_sel", "")],
+            "clothing_detail": chosen_items if chosen_items else [],
             "clothing_detail_map": clo_detail if chosen_items else {},
-            "met_value": met_value,
+            "time_in_space": time_in_space,
+            "activity_type": activity_type if activity_type != "Other" else activity_other,
 
             # symptoms / satisfaction
             "symptom_notes": symptom_notes.strip() or None,
