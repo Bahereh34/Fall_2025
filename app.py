@@ -113,8 +113,9 @@ st.markdown('<div class="section-caption">Please select the number that matches 
 
 GRID_IMAGE = str(BASE_DIR / "assets" / "clo_images" / "grid_numbered_plan.png")
 if os.path.exists(GRID_IMAGE):
-    st.image(Image.open(GRID_IMAGE), caption="Numbered seating/grid map", use_container_width=True)
-
+    st.image(GRID_IMAGE, caption="Numbered seating/grid map", use_column_width=True)
+else:
+    st.warning("Grid image not found.")
 grid_number = st.number_input(
     "Your seat/grid number",
     min_value=1,
