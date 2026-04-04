@@ -109,13 +109,21 @@ Share your thermal, visual, and work-related experience in this space.
 # ---------- Seat / Grid Location ----------
 st.markdown('<div class="section-card">', unsafe_allow_html=True)
 st.markdown('<div class="section-heading">Seat / Grid Location</div>', unsafe_allow_html=True)
-st.markdown('<div class="section-caption">Please select the number that matches where you are sitting.</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="section-caption">Please select the number that matches where you are sitting.</div>',
+    unsafe_allow_html=True
+)
+
+st.caption(
+    "The image below is only a sample map. Please enter the number shown on the studio floor at your current location."
+)
 
 GRID_IMAGE = str(BASE_DIR / "assets" / "clo_images" / "grid_numbered_plan.png")
 if os.path.exists(GRID_IMAGE):
-    st.image(GRID_IMAGE, caption="Numbered seating/grid map", use_column_width=True)
+    st.image(GRID_IMAGE, caption="Sample numbered seating/grid map", use_column_width=True)
 else:
     st.warning("Grid image not found.")
+
 grid_number = st.number_input(
     "Your seat/grid number",
     min_value=1,
@@ -124,11 +132,27 @@ grid_number = st.number_input(
     step=1
 )
 
+st.subheader("Participant type")
+participant_type = st.radio(
+    "How should this response be recorded?",
+    ["Core group", "Visitor"],
+    horizontal=True,
+    help="Core group = repeated participants for main analysis. Visitor = occasional user."
+)
+
 c1, c2 = st.columns(2)
 with c1:
     room = st.text_input("Room/Location (optional)")
+
 with c2:
-    user_id = st.text_input("User ID (optional)")
+    if participant_type == "Core group":
+        user_id = st.text_input(
+            "User ID or anonymous code (optional)",
+            placeholder="e.g., P07 or A12"
+        )
+    else:
+        user_id = "visitor"
+        st.text_input("User ID", value="visitor", disabled=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("---")
