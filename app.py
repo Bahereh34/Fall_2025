@@ -305,7 +305,7 @@ st.markdown("---")
 st.subheader("Voice note (optional)")
 st.caption("You can record a short voice note or upload an audio file.")
 st.header("5) Open-Ended Feedback")
-st.caption("You can record a short voice note or upload an audio file.")
+
 
 audio_bytes = None
 audio_mime = "audio/wav"
@@ -336,10 +336,6 @@ if upload is not None:
     st.success(f"Uploaded file: {len(audio_bytes)} bytes")
     st.audio(io.BytesIO(audio_bytes), format=audio_mime)
 
-voice_note_text = st.text_input(
-    "Short summary (optional)",
-    placeholder="e.g., glare on projector, warm near window, hard to focus"
-)
 
 # ---------- Submit / Reset ----------
 left, right = st.columns([1, 2])
