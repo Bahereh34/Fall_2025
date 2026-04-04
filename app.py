@@ -11,7 +11,7 @@ from pathlib import Path
 import streamlit as st
 from PIL import Image
 from supabase import create_client, Client
-
+from ui_helpers import yes_no_matrix, likert_matrix, who5_matrix
 # ---------- Page & Secrets ----------
 st.set_page_config(page_title="Comfort Feedback", page_icon="📝", layout="centered")
 
