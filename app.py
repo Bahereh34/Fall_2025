@@ -359,6 +359,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.header("1) Thermal Comfort")
 thermal_sensation = st.slider(
     "Thermal sensation (ASHRAE 7-point)",
+    "How do you feel right now?",
     -3,
     3,
     0,
