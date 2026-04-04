@@ -330,6 +330,7 @@ Share your thermal, visual, and well-being experience in this space.
 st.markdown('<div class="section-card">', unsafe_allow_html=True)
 st.markdown('<div class="section-heading">Seat / Grid Location</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-caption">Please select the number that matches where you are sitting.</div>', unsafe_allow_html=True)
+
 # ---------- Seat / Grid Location ----------
 st.header("Grid Location")
 st.caption("Please select the number that matches where you are sitting.")
@@ -356,27 +357,67 @@ with c2:
 st.markdown("---")
 st.markdown('</div>', unsafe_allow_html=True)
 # ---------- 1) Thermal ----------
-st.header("1) Thermal Comfort")
+# ---------- 1) Thermal ----------
+st.header("1) Thermal")
+
+st.subheader("A. Thermal sensation (PRIMARY)")
+st.caption("How do you feel right now?")
+
 thermal_sensation = st.slider(
-    "Thermal sensation (ASHRAE 7-point)",
-    
-    -3,
-    3,
-    0,
-    help="-3 Cold · -2 Cool · -1 Slightly Cool · 0 Neutral · +1 Slightly Warm · +2 Warm · +3 Hot",
+    "Thermal sensation",
+    min_value=-3,
+    max_value=3,
+    value=0,
+    help="-3 Cold · -2 Cool · -1 Slightly cool · 0 Neutral · +1 Slightly warm · +2 Warm · +3 Hot",
 )
+
+thermal_sensation_labels = {
+    -3: "Cold",
+    -2: "Cool",
+    -1: "Slightly cool",
+     0: "Neutral",
+     1: "Slightly warm",
+     2: "Warm",
+     3: "Hot",
+}
+
 gradient_legend(
     ["#1e3a8a 0%", "#2563eb 16.6%", "#60a5fa 33.3%", "#e5e7eb 50%", "#fdba74 66.6%", "#f97316 83.3%", "#dc2626 100%"],
     ["Cold", "Cool", "Slightly cool", "Neutral", "Slightly warm", "Warm", "Hot"],
 )
+
 chip(
     {-3: "#1e3a8a", -2: "#2563eb", -1: "#60a5fa", 0: "#e5e7eb", 1: "#fdba74", 2: "#f97316", 3: "#dc2626"}[thermal_sensation],
-    f"Thermal = {thermal_sensation}",
+    f"{thermal_sensation_labels[thermal_sensation]} ({thermal_sensation})",
     "🌡️",
 )
-thermal_preference = st.radio("Do you want it…", ["No change", "Warmer", "Cooler"], horizontal=True)
-air_movement = st.radio("Air movement feels…", ["Still", "Slight breeze", "Drafty"], horizontal=True)
-thermal_notes = st.text_area("Thermal notes (optional):", placeholder="e.g., warm near window; stuffy air…")
+
+st.subheader("B. Thermal comfort")
+thermal_comfort = st.radio(
+    "Are you comfortable?",
+    ["Comfortable", "Slightly uncomfortable", "Uncomfortable"],
+    horizontal=True,
+)
+
+st.subheader("C. Thermal preference")
+thermal_preference = st.radio(
+    "Would you prefer it to be:",
+    ["Cooler", "No change", "Warmer"],
+    horizontal=True,
+)
+
+# Keep this only if you still want extra thermal context
+air_movement = st.radio(
+    "Air movement feels…",
+    ["Still", "Slight breeze", "Drafty"],
+    horizontal=True,
+)
+
+thermal_notes = st.text_area(
+    "Thermal notes (optional):",
+    placeholder="e.g., warm near window; stuffy air; cold draft..."
+)
+
 st.markdown("---")
 
 # ---------- 2) Visual ----------
