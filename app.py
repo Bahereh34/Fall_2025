@@ -287,7 +287,7 @@ st.markdown("---")
 st.header("5) Open-ended Feedback")
 st.caption("You can briefly describe your experience in text and optionally record or upload a voice note.")
 
-st.subheader("E. Brief description")
+st.subheader("Brief description")
 open_feedback_text = st.text_area(
     "Can you briefly describe your experience?",
     placeholder="Examples:\n• Sunlight is hitting my screen\n• It feels stuffy\n• Too bright near the window",
