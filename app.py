@@ -421,13 +421,12 @@ thermal_notes = st.text_area(
 st.markdown("---")
 
 # ---------- 2) Visual ----------
-# ---------- 2) Visual ----------
 st.header("2) Visual Comfort")
 
 # A. Brightness perception
 st.subheader("A. Brightness perception")
 brightness = st.radio(
-    "How is the light level at your seat?",
+    "How is the light level at your current workspace?",
     ["Too dim", "Comfortable", "Too bright"],
     horizontal=True,
 )
@@ -478,6 +477,59 @@ visual_notes = st.text_area(
 )
 
 st.markdown("---")
+
+# ---------- Contextual Factors ----------
+st.header("3) Contextual Factors")
+
+# 1. Location (you already have it — just keep it consistent)
+st.subheader("1. Location")
+st.caption("Your selected seat/grid number will be used for spatial analysis.")
+
+# (You already defined grid_number above — do NOT repeat input here)
+
+# 2. Time (duration in space)
+st.subheader("2. Time in this space")
+time_in_space = st.radio(
+    "How long have you been in this space?",
+    [
+        "Less than 15 minutes",
+        "15–60 minutes",
+        "1–3 hours",
+        "More than 3 hours",
+    ],
+    horizontal=True,
+)
+
+# 3. Clothing (simplified quick version)
+st.subheader("3. Clothing level")
+clothing_level = st.radio(
+    "How would you describe your clothing?",
+    ["Light", "Medium", "Heavy"],
+    horizontal=True,
+)
+
+st.caption("This is a quick estimate. A detailed option is available below.")
+
+# 4. Activity (IMPORTANT: refine this)
+st.subheader("4. Activity")
+
+activity_type = st.selectbox(
+    "What are you mainly doing right now?",
+    [
+        "Focused work (laptop / writing)",
+        "Studio work (drawing / modeling)",
+        "Discussion / group work",
+        "Passive (listening / lecture)",
+        "Other",
+    ]
+)
+
+activity_other = ""
+if activity_type == "Other":
+    activity_other = st.text_input("Please specify activity")
+
+st.markdown("---")
+
 
 # ---------- 3) Feeling ----------
 st.header("3) Feeling / Concentration")
@@ -857,6 +909,10 @@ with right:
             "task_interference_note": task_interference_note.strip() if task_interference_note else None,
             "visual_notes": visual_notes.strip() or None,
             "visual_discomfort_flag": visual_discomfort_flag,
+            # contextual
+            "time_in_space": time_in_space,
+            "clothing_level_simple": clothing_level,
+            "activity_type": activity_type if activity_type != "Other" else activity_other,
             "mood": mood if mood != "Other" else (mood_other.strip() or None),
             "concentration": concentration,
             "productivity": productivity,
