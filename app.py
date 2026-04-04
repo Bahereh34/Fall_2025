@@ -721,17 +721,20 @@ who_answers, who_raw, who_scaled = who5_matrix()
 
 # ---------- Mini-cards ----------
 st.subheader("Now")
-mc1, mc2, mc3, mc4, mc5 = st.columns(5)
+mc1, mc2, mc3, mc4, mc5, mc6 = st.columns(6)
+
 with mc1:
-    metric_card("KSS (sleepiness)", f"{kss_score}", "1 alert → 9 very sleepy", "🛌")
+    metric_card("Thermal", f"{thermal_sensation}", thermal_sensation_labels[thermal_sensation], "🌡️")
 with mc2:
-    metric_card("CLO", f"{clo_value:.2f}", "clothing insulation", "🧥")
+    metric_card("Comfort", thermal_comfort, "thermal comfort", "🙂")
 with mc3:
-    metric_card("Activity", f"{met_value:.1f} met", "metabolic rate", "🏃")
+    metric_card("KSS", f"{kss_score}", "1 alert → 9 sleepy", "🛌")
 with mc4:
-    metric_card("WHO-5", f"{who_scaled}", "0–100, ≥50 good", "🙂")
+    metric_card("CLO", f"{clo_value:.2f}", "clothing insulation", "🧥")
 with mc5:
-    metric_card("Room", room or "—", "location tag", "📍")
+    metric_card("Activity", f"{met_value:.1f} met", "metabolic rate", "🏃")
+with mc6:
+    metric_card("WHO-5", f"{who_scaled}", "0–100", "📊")
 
 st.markdown("---")
 
