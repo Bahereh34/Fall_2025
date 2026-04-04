@@ -581,17 +581,65 @@ if activity_type == "Other":
     activity_other = st.text_input("Please specify activity")
 
 st.markdown("---")
-# ---------- 3) Feeling ----------
-st.header("3) Feeling / Concentration")
-mood = st.selectbox("How do you feel right now?", ["Happy", "Content/Neutral", "Tired", "Stressed/Anxious", "Irritated", "Other"])
-mood_other = st.text_input("Please specify your feeling:") if mood == "Other" else ""
-concentration = st.slider("How focused were you during the last 10 minutes?", 0, 10, 5)
-productivity = st.slider("How productive do you feel right now?", 0, 10, 5)
-feeling_notes = st.text_area("Tell us a bit more (optional):", placeholder="e.g., Feeling distracted by temperature or lighting...")
-st.markdown("---")
+# ---------- 4) Impact on Work & Well-being ----------
+st.header("4) Impact on Work & Well-being")
 
-# ---------- 4) KSS ----------
-st.header("4) Sleepiness / Fatigue (KSS)")
+# A. Concentration
+st.subheader("A. Concentration")
+concentration = st.slider(
+    "How well can you concentrate right now?",
+    min_value=0,
+    max_value=10,
+    value=5,
+    help="0 = Very poorly · 10 = Very well",
+)
+
+gradient_legend(
+    ["#ef4444 0%", "#f59e0b 50%", "#16a34a 100%"],
+    ["Very poorly", "Moderate", "Very well"]
+)
+
+chip(
+    "#16a34a" if concentration >= 7 else ("#f59e0b" if concentration >= 4 else "#ef4444"),
+    f"Concentration = {concentration}",
+    "🧠",
+)
+
+# B. Productivity
+st.subheader("B. Productivity")
+productivity = st.slider(
+    "How would you rate your productivity in this environment?",
+    min_value=0,
+    max_value=10,
+    value=5,
+    help="0 = Very low · 10 = Very high",
+)
+
+chip(
+    "#16a34a" if productivity >= 7 else ("#f59e0b" if productivity >= 4 else "#ef4444"),
+    f"Productivity = {productivity}",
+    "📈",
+)
+
+# C. Mood
+st.subheader("C. Mood")
+mood = st.radio(
+    "How does the environment affect your mood?",
+    ["Positive", "Neutral", "Negative"],
+    horizontal=True,
+)
+
+mood_colors = {
+    "Positive": "#16a34a",
+    "Neutral": "#9ca3af",
+    "Negative": "#ef4444",
+}
+
+chip(mood_colors[mood], f"Mood = {mood}", "🙂")
+
+# D. Fatigue / Sleepiness (KSS)
+st.subheader("D. Fatigue / Sleepiness")
+
 kss_opts = [
     "1 – Extremely alert",
     "2 – Very alert",
@@ -601,22 +649,20 @@ kss_opts = [
     "6 – Some signs of sleepiness",
     "7 – Sleepy, but no effort to stay awake",
     "8 – Sleepy, some effort to stay awake",
-    "9 – Very sleepy, great effort to stay awake, fighting sleep",
+    "9 – Very sleepy, fighting sleep",
 ]
+
 kss_label = st.radio("How sleepy do you feel right now?", kss_opts, index=2)
 kss_score = int(kss_label.split(" – ")[0])
 
-gradient_legend(
-    ["#16a34a 0%", "#22c55e 12.5%", "#4ade80 25%", "#a3e635 37.5%", "#eab308 50%", "#f59e0b 62.5%", "#fb923c 75%", "#f97316 87.5%", "#ef4444 100%"],
-    ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
-)
 chip(
-    {1: "#16a34a", 2: "#22c55e", 3: "#4ade80", 4: "#a3e635", 5: "#eab308", 6: "#f59e0b", 7: "#fb923c", 8: "#f97316", 9: "#ef4444"}[kss_score],
+    {1: "#16a34a", 2: "#22c55e", 3: "#4ade80", 4: "#a3e635",
+     5: "#eab308", 6: "#f59e0b", 7: "#fb923c", 8: "#f97316", 9: "#ef4444"}[kss_score],
     f"KSS = {kss_score}",
     "🛌",
 )
-st.markdown("---")
 
+st.markdown("---")
 
 # ---------- Smartwatch (Optional) ----------
 st.header("5) Smartwatch Data (Optional)")
