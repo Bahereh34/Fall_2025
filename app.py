@@ -356,11 +356,11 @@ with c2:
 
 st.markdown("---")
 st.markdown('</div>', unsafe_allow_html=True)
-# ---------- 1) Thermal ----------
+
 # ---------- 1) Thermal ----------
 st.header("1) Thermal")
 
-st.subheader("A. Thermal sensation (PRIMARY)")
+st.subheader("A. Thermal sensation ")
 st.caption("How do you feel right now?")
 
 thermal_sensation = st.slider(
@@ -792,6 +792,8 @@ with right:
 
             # thermal / visual / feeling
             "thermal_sensation": thermal_sensation,
+            "thermal_sensation_label": thermal_sensation_labels[thermal_sensation],
+            "thermal_comfort": thermal_comfort,
             "thermal_preference": thermal_preference,
             "air_movement": air_movement,
             "thermal_notes": thermal_notes.strip() or None,
