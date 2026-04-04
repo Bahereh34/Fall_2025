@@ -347,30 +347,32 @@ with left:
 with right:
     if st.button("Submit Feedback", type="primary"):
         payload = {
-            "id": str(uuid.uuid4()),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "room": room.strip() or None,
-            "user_id": user_id.strip() or None,
-            "grid_number": int(grid_number),
+    "id": str(uuid.uuid4()),
+    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "room": room.strip() or None,
+    "user_id": user_id.strip() or None,
+    "grid_number": int(grid_number),
 
-            "thermal_sensation": thermal_sensation,
-            "thermal_sensation_label": thermal_sensation_labels[thermal_sensation],
-            "thermal_comfort": thermal_comfort,
-            "thermal_preference": thermal_preference,
+    "thermal_sensation": thermal_sensation,
+    "thermal_sensation_label": thermal_sensation_labels[thermal_sensation],
+    "thermal_comfort": thermal_comfort,
+    "thermal_preference": thermal_preference,
 
-            "brightness": brightness,
-            "glare_level": glare_level,
-            "visual_comfort": visual_comfort,
-            "visual_discomfort_flag": visual_discomfort_flag,
+    "brightness": brightness,
+    "glare_level": glare_level,
+    "visual_comfort": visual_comfort,
+    "visual_discomfort_flag": visual_discomfort_flag,
 
-            "task_interference": task_interference == "Yes",
-            "task_interference_note": task_interference_note.strip() if task_interference_note else None,
-            "concentration": concentration,
-            "productivity": productivity,
+    "task_interference": task_interference == "Yes",
+    "task_interference_note": task_interference_note.strip() if task_interference_note else None,
+    "concentration": concentration,
+    "productivity": productivity,
 
-            "time_in_space": time_in_space,
-        }
+    "time_in_space": time_in_space,
 
+    "open_feedback_text": open_feedback_text.strip() or None,
+    "feedback_influence": feedback_influence,
+}
         # audio upload
         audio_path = None
         if audio_bytes:
