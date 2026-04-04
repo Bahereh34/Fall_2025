@@ -421,17 +421,62 @@ thermal_notes = st.text_area(
 st.markdown("---")
 
 # ---------- 2) Visual ----------
+# ---------- 2) Visual ----------
 st.header("2) Visual Comfort")
-brightness = st.radio("Brightness level:", ["Too dim", "OK", "Too bright"], horizontal=True)
-glare_rating = st.slider("Glare discomfort (1 = no glare, 5 = severe glare)", 1, 5, 2)
-gradient_legend(["#000000 0%", "#6b7280 50%", "#fde047 100%"], ["Dark", "OK", "Too bright"])
-chip(
-    {1: "#000000", 2: "#4b5563", 3: "#9ca3af", 4: "#f59e0b", 5: "#fde047"}[glare_rating],
-    f"Glare = {glare_rating}",
-    "👀",
+
+# A. Brightness perception
+st.subheader("A. Brightness perception")
+brightness = st.radio(
+    "How is the light level at your seat?",
+    ["Too dim", "Comfortable", "Too bright"],
+    horizontal=True,
 )
-task_affected = st.checkbox("Glare/brightness is affecting my task (screen/board/paper)")
-visual_notes = st.text_area("Visual notes (optional):", placeholder="e.g., glare on screen; board is hard to read…")
+
+# B. Glare perception (CRITICAL)
+st.subheader("B. Glare perception")
+glare_level = st.radio(
+    "Do you experience glare?",
+    ["None", "Slight", "Moderate", "Severe"],
+    horizontal=True,
+)
+
+# Optional visual cue (keep your nice UI logic)
+glare_colors = {
+    "None": "#16a34a",
+    "Slight": "#84cc16",
+    "Moderate": "#f59e0b",
+    "Severe": "#ef4444",
+}
+chip(glare_colors[glare_level], f"Glare = {glare_level}", "👀")
+
+# C. Visual comfort (evaluation)
+st.subheader("C. Visual comfort")
+visual_comfort = st.radio(
+    "How comfortable is the lighting for your task?",
+    ["Comfortable", "Slightly uncomfortable", "Uncomfortable"],
+    horizontal=True,
+)
+
+# D. Task interference (IMPACT)
+st.subheader("D. Task interference")
+task_interference = st.radio(
+    "Does the lighting affect your ability to work?",
+    ["Yes", "No"],
+    horizontal=True,
+)
+
+task_interference_note = None
+if task_interference == "Yes":
+    task_interference_note = st.text_area(
+        "If yes, please explain:",
+        placeholder="e.g., glare on screen, low light on desk, reflections..."
+    )
+
+visual_notes = st.text_area(
+    "Additional visual notes (optional):",
+    placeholder="Any other comments about lighting..."
+)
+
 st.markdown("---")
 
 # ---------- 3) Feeling ----------
@@ -801,8 +846,10 @@ with right:
             "air_movement": air_movement,
             "thermal_notes": thermal_notes.strip() or None,
             "brightness": brightness,
-            "glare_rating": glare_rating,
-            "task_affected": task_affected,
+            "glare_level": glare_level,
+            "visual_comfort": visual_comfort,
+            "task_interference": task_interference == "Yes",
+            "task_interference_note": task_interference_note.strip() if task_interference_note else None,
             "visual_notes": visual_notes.strip() or None,
             "mood": mood if mood != "Other" else (mood_other.strip() or None),
             "concentration": concentration,
