@@ -832,6 +832,11 @@ with left:
 
 with right:
     if st.button("Submit Feedback", type="primary"):
+        # ---------- Derived variables ----------
+        visual_discomfort_flag = (
+        visual_comfort != "Comfortable"
+        or glare_level in ["Moderate", "Severe"]
+)
         payload = {
             "id": str(uuid.uuid4()),
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -851,6 +856,7 @@ with right:
             "task_interference": task_interference == "Yes",
             "task_interference_note": task_interference_note.strip() if task_interference_note else None,
             "visual_notes": visual_notes.strip() or None,
+            "visual_discomfort_flag": visual_discomfort_flag,
             "mood": mood if mood != "Other" else (mood_other.strip() or None),
             "concentration": concentration,
             "productivity": productivity,
