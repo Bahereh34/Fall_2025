@@ -12,7 +12,10 @@ import streamlit as st
 from PIL import Image
 from supabase import create_client, Client
 
+from openai import OpenAI
 
+OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "").strip()
+client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 
 # ---------- Page & Secrets ----------
@@ -432,5 +435,109 @@ with right:
             st.rerun()
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
+# ---------------------------- LLM ----------------------------
 
+st.markdown("---")
+st.header("🤖 Smart Feedback")
+st.caption("Generate short AI-assisted suggestions based on your current responses.")
+
+def build_rule_feedback() -> list[str]:
+    feedback = []
+
+    # Thermal
+    if thermal_sensation >= 2:
+        feedback.append("The space feels warm. Increased ventilation, airflow, or shading may help.")
+    elif thermal_sensation <= -2:
+        feedback.append("The space feels cool. Reduced drafts or slightly warmer conditions may help.")
+
+    if thermal_comfort == "Uncomfortable":
+        feedback.append("Your thermal comfort is low. Adjusting temperature or air movement may improve comfort.")
+
+    # Visual
+    if glare_level in ["Moderate", "Severe"]:
+        feedback.append("Glare is affecting your comfort. Consider adjusting blinds, seating angle, or screen position.")
+
+    if brightness == "Too dim":
+        feedback.append("Lighting may be insufficient for your task. Additional task lighting could help.")
+    elif brightness == "Too bright":
+        feedback.append("The space may be too bright. Shading or repositioning may improve comfort.")
+
+    if visual_comfort == "Uncomfortable":
+        feedback.append("Lighting comfort is low for your task. A better balance of brightness and glare control may help.")
+
+    # Task impact
+    if task_interference == "Yes":
+        feedback.append("The environment appears to be affecting your work. Local adjustments near your seat may help.")
+
+    if concentration < 4:
+        feedback.append("Your concentration is low. Environmental conditions may be contributing to reduced focus.")
+
+    if productivity < 4:
+        feedback.append("Your productivity is reduced. Improving thermal or visual conditions may help performance.")
+
+    return feedback
+
+
+def generate_llm_feedback(context_text: str) -> str:
+    if client is None:
+        raise RuntimeError("OPENAI_API_KEY is not set.")
+
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        input=f"""
+You are an expert in indoor environmental quality for educational studio spaces.
+
+User conditions:
+{context_text}
+
+Task:
+Write 2 to 4 short, actionable suggestions.
+Be specific, practical, and easy to understand.
+Do not mention medical advice.
+Focus on thermal comfort, visual comfort, and work performance.
+""".strip(),
+    )
+    return response.output_text.strip()
+
+
+if st.button("Generate AI Feedback"):
+    rule_feedback = build_rule_feedback()
+
+    context_text = f"""
+Participant type: {participant_type}
+Seat/grid number: {grid_number}
+Time in space: {time_in_space}
+
+Thermal sensation: {thermal_sensation_labels[thermal_sensation]} ({thermal_sensation})
+Thermal comfort: {thermal_comfort}
+Thermal preference: {thermal_preference}
+
+Brightness: {brightness}
+Glare: {glare_level}
+Visual comfort: {visual_comfort}
+
+Task interference: {task_interference}
+Concentration: {concentration}/10
+Productivity: {productivity}/10
+
+Open feedback: {open_feedback_text or "None"}
+""".strip()
+
+    try:
+        llm_response = generate_llm_feedback(context_text)
+        st.subheader("AI Suggestions")
+        st.write(llm_response)
+
+        if rule_feedback:
+            with st.expander("Rule-based interpretation"):
+                for item in rule_feedback:
+                    st.write(f"• {item}")
+
+    except Exception as e:
+        st.warning(f"LLM feedback not available. Showing rule-based suggestions instead. ({e})")
+        if rule_feedback:
+            for item in rule_feedback:
+                st.write(f"• {item}")
+        else:
+            st.write("• No strong discomfort signal was detected from the current responses.")
 # ---------------------------- end of file ----------------------------
