@@ -12,6 +12,9 @@ import streamlit as st
 from PIL import Image
 from supabase import create_client, Client
 
+
+st.set_page_config(page_title="Comfort Feedback", page_icon="📝")
+
 # ---------- Page & Secrets ----------
 st.set_page_config(page_title="Comfort Feedback", page_icon="📝", layout="centered")
 
