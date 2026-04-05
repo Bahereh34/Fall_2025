@@ -7,11 +7,8 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 from pathlib import Path
 from typing import List
-
 import streamlit as st
-from PIL import Image
 from supabase import create_client, Client
-
 from openai import OpenAI
 
 
@@ -333,7 +330,7 @@ st.markdown("---")
 
 st.subheader("Voice note (optional)")
 st.caption("You can record a short voice note or upload an audio file.")
-st.header("5) Open-Ended Feedback")
+
 
 
 audio_bytes = None
@@ -402,6 +399,7 @@ with right:
 
     "open_feedback_text": open_feedback_text.strip() or None,
     "feedback_influence": feedback_influence,
+    "voice_note_text": voice_note_text.strip() or None,
 }
         # audio upload
         audio_path = None
@@ -434,6 +432,11 @@ with right:
             st.rerun()
         except Exception as e:
             st.error(f"❌ Failed to submit: {e}")
+
+voice_note_text = st.text_input(
+    "Short summary of your voice note (optional)",
+    placeholder="e.g., glare on screen, too warm near the window"
+)
 # ---------------------------- LLM ----------------------------
 
 st.markdown("---")
