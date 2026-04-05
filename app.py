@@ -376,6 +376,7 @@ with right:
     "room": room.strip() or None,
     "user_id": user_id.strip() or None,
     "grid_number": int(grid_number),
+    "participant_type": participant_type,
 
     "thermal_sensation": thermal_sensation,
     "thermal_sensation_label": thermal_sensation_labels[thermal_sensation],
