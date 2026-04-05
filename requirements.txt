@@ -8,3 +8,4 @@ audio-recorder-streamlit
 streamlit-audiorecorder
 SpeechRecognition
 pydub
+openai
