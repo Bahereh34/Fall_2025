@@ -103,7 +103,7 @@ def metric_card(title: str, value: str, sub: str = "", icon: str = ""):
 
 # ---------- Title ----------
 st.markdown("""
-<div class="app-title">📝 Indoor Comfort Feedback Portal</div>
+<div class="app-title">📝 Indoor Environmental Quality Feedback</div>
 <div class="app-subtitle">
 Share your thermal, visual, and work-related experience in this space.
 </div>
