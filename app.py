@@ -14,8 +14,7 @@ from supabase import create_client, Client
 
 from openai import OpenAI
 
-OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "").strip()
-client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
 
 
 # ---------- Page & Secrets ----------
